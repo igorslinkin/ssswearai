@@ -12,6 +12,43 @@ type Mode =
 
 type Ratio = "4:5" | "3:4" | "9:16" | "1:1" | "2:3";
 
+async function compressImage(file: File, maxSize = 1400, quality = 0.82) {
+  const imageBitmap = await createImageBitmap(file);
+
+  const scale = Math.min(1, maxSize / Math.max(imageBitmap.width, imageBitmap.height));
+  const width = Math.round(imageBitmap.width * scale);
+  const height = Math.round(imageBitmap.height * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    throw new Error("Canvas is not supported.");
+  }
+
+  ctx.drawImage(imageBitmap, 0, 0, width, height);
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (result) => {
+        if (result) resolve(result);
+        else reject(new Error("Image compression failed."));
+      },
+      "image/jpeg",
+      quality
+    );
+  });
+
+  return new File(
+    [blob],
+    file.name.replace(/\.[^.]+$/, "") + "-compressed.jpg",
+    { type: "image/jpeg" }
+  );
+}
+
 export default function Page() {
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
@@ -35,23 +72,26 @@ export default function Page() {
     setError("");
     setImage("");
 
-    const formData = new FormData();
-
-    formData.append("front", frontFile);
-
-    if (backFile) {
-      formData.append("back", backFile);
-    }
-
-    detailFiles.forEach((file) => {
-      formData.append("details", file);
-    });
-
-    formData.append("mode", mode);
-    formData.append("aspectRatio", aspectRatio);
-    formData.append("userPrompt", userPrompt);
-
     try {
+      const formData = new FormData();
+
+      const compressedFront = await compressImage(frontFile);
+      formData.append("front", compressedFront);
+
+      if (backFile) {
+        const compressedBack = await compressImage(backFile);
+        formData.append("back", compressedBack);
+      }
+
+      for (const file of detailFiles) {
+        const compressedDetail = await compressImage(file);
+        formData.append("details", compressedDetail);
+      }
+
+      formData.append("mode", mode);
+      formData.append("aspectRatio", aspectRatio);
+      formData.append("userPrompt", userPrompt);
+
       const res = await fetch("/api/generate", {
         method: "POST",
         body: formData,
@@ -65,8 +105,8 @@ export default function Page() {
       }
 
       setImage(data.image);
-    } catch {
-      setError("Ошибка запроса к API.");
+    } catch (err: any) {
+      setError(err?.message || "Ошибка запроса к API.");
     } finally {
       setLoading(false);
     }
@@ -94,7 +134,9 @@ export default function Page() {
           {detailFiles.length > 0 && (
             <ul>
               {detailFiles.map((file, index) => (
-                <li key={index}>{file.name}</li>
+                <li key={index}>
+                  {file.name} — {(file.size / 1024 / 1024).toFixed(2)} MB
+                </li>
               ))}
             </ul>
           )}
@@ -155,7 +197,7 @@ export default function Page() {
           cursor: "pointer",
         }}
       >
-        {loading ? "Генерируем..." : "Сгенерировать фото"}
+        {loading ? "Сжимаем фото и генерируем..." : "Сгенерировать фото"}
       </button>
 
       {loading && <p>Генерация может занять около минуты...</p>}
@@ -190,7 +232,11 @@ function UploadBox({
         accept="image/*"
         onChange={(e) => onChange(e.target.files?.[0] || null)}
       />
-      {file && <p>✅ {file.name}</p>}
+      {file && (
+        <p>
+          ✅ {file.name} — {(file.size / 1024 / 1024).toFixed(2)} MB
+        </p>
+      )}
     </div>
   );
 }
