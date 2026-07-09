@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SignInButton, UserButton, useUser } from "@clerk/nextjs";
 
 type Mode =
@@ -13,11 +13,7 @@ type Mode =
 
 type Ratio = "4:5" | "3:4" | "9:16" | "1:1" | "2:3";
 
-const modes: {
-  value: Mode;
-  title: string;
-  description: string;
-}[] = [
+const modes: { value: Mode; title: string; description: string }[] = [
   { value: "cyclorama", title: "Cyclorama", description: "Clean studio background" },
   { value: "product", title: "Product", description: "Marketplace-ready frame" },
   { value: "creative", title: "Creative", description: "Bold visual concept" },
@@ -30,12 +26,7 @@ const ratios: Ratio[] = ["4:5", "3:4", "9:16", "1:1", "2:3"];
 
 async function compressImage(file: File, maxSize = 1400, quality = 0.82) {
   const imageBitmap = await createImageBitmap(file);
-
-  const scale = Math.min(
-    1,
-    maxSize / Math.max(imageBitmap.width, imageBitmap.height)
-  );
-
+  const scale = Math.min(1, maxSize / Math.max(imageBitmap.width, imageBitmap.height));
   const width = Math.round(imageBitmap.width * scale);
   const height = Math.round(imageBitmap.height * scale);
 
@@ -44,10 +35,7 @@ async function compressImage(file: File, maxSize = 1400, quality = 0.82) {
   canvas.height = height;
 
   const ctx = canvas.getContext("2d");
-
-  if (!ctx) {
-    throw new Error("Canvas is not supported.");
-  }
+  if (!ctx) throw new Error("Canvas is not supported.");
 
   ctx.drawImage(imageBitmap, 0, 0, width, height);
 
@@ -62,11 +50,9 @@ async function compressImage(file: File, maxSize = 1400, quality = 0.82) {
     );
   });
 
-  return new File(
-    [blob],
-    file.name.replace(/\.[^.]+$/, "") + "-compressed.jpg",
-    { type: "image/jpeg" }
-  );
+  return new File([blob], file.name.replace(/\.[^.]+$/, "") + "-compressed.jpg", {
+    type: "image/jpeg",
+  });
 }
 
 function formatFileSize(file: File) {
@@ -75,6 +61,9 @@ function formatFileSize(file: File) {
 
 export default function Page() {
   const { isSignedIn, isLoaded } = useUser();
+
+  const [credits, setCredits] = useState<number | null>(null);
+  const [creditsLoading, setCreditsLoading] = useState(false);
 
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
@@ -87,6 +76,32 @@ export default function Page() {
   const [image, setImage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function loadProfile() {
+      if (!isSignedIn) {
+        setCredits(null);
+        return;
+      }
+
+      try {
+        setCreditsLoading(true);
+
+        const res = await fetch("/api/me");
+        const data = await res.json();
+
+        if (data.success) {
+          setCredits(data.profile.credits);
+        }
+      } catch {
+        setCredits(null);
+      } finally {
+        setCreditsLoading(false);
+      }
+    }
+
+    loadProfile();
+  }, [isSignedIn]);
 
   const uploadedCount = useMemo(() => {
     return Number(Boolean(frontFile)) + Number(Boolean(backFile)) + detailFiles.length;
@@ -160,9 +175,7 @@ export default function Page() {
       <header className="border-b border-black/10 bg-[#f7f5f0]/90 backdrop-blur">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-5">
           <div>
-            <div className="text-sm font-semibold tracking-[0.22em]">
-              SSSWEAR AI
-            </div>
+            <div className="text-sm font-semibold tracking-[0.22em]">SSSWEAR AI</div>
             <div className="mt-1 text-xs text-black/50">
               Professional fashion photography from your garment
             </div>
@@ -179,7 +192,9 @@ export default function Page() {
             {isSignedIn ? (
               <>
                 <div className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm">
-                  2 340 Credits
+                  {creditsLoading
+                    ? "Loading Credits"
+                    : `${credits ?? 0} Credits`}
                 </div>
                 <UserButton />
               </>
@@ -206,9 +221,8 @@ export default function Page() {
             </h1>
 
             <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-black/55">
-              Upload front, back and detail photos of your product. Generate
-              premium AI fashion photography for campaigns, marketplaces and
-              social media.
+              Upload front, back and detail photos of your product. Generate premium AI fashion
+              photography for campaigns, marketplaces and social media.
             </p>
 
             <SignInButton mode="modal">
@@ -217,9 +231,7 @@ export default function Page() {
               </button>
             </SignInButton>
 
-            <p className="mt-4 text-xs text-black/40">
-              Email-only access. No Google login.
-            </p>
+            <p className="mt-4 text-xs text-black/40">Email-only access. No Google login.</p>
           </div>
         </section>
       ) : (
@@ -228,12 +240,10 @@ export default function Page() {
             <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
-                  <h1 className="text-3xl font-semibold tracking-[-0.04em]">
-                    New generation
-                  </h1>
+                  <h1 className="text-3xl font-semibold tracking-[-0.04em]">New generation</h1>
                   <p className="mt-2 text-sm leading-6 text-black/55">
-                    Upload garment photos, choose a shooting mode and create one
-                    premium AI fashion image.
+                    Upload garment photos, choose a shooting mode and create one premium AI fashion
+                    image.
                   </p>
                 </div>
 
@@ -263,10 +273,7 @@ export default function Page() {
             </div>
 
             <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
-              <SectionTitle
-                title="Photo type"
-                subtitle="Choose the production context"
-              />
+              <SectionTitle title="Photo type" subtitle="Choose the production context" />
 
               <div className="mt-4 grid grid-cols-2 gap-3">
                 {modes.map((item) => (
@@ -316,10 +323,7 @@ export default function Page() {
             </div>
 
             <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
-              <SectionTitle
-                title="Additional instructions"
-                subtitle="Optional creative direction"
-              />
+              <SectionTitle title="Additional instructions" subtitle="Optional creative direction" />
 
               <textarea
                 value={userPrompt}
@@ -368,8 +372,8 @@ export default function Page() {
                       Creating fashion image
                     </div>
                     <div className="mt-2 text-sm leading-6 text-white/40">
-                      We compress your photos and generate one premium result.
-                      This can take about a minute.
+                      We compress your photos and generate one premium result. This can take about a
+                      minute.
                     </div>
                   </div>
                 )}
@@ -383,8 +387,8 @@ export default function Page() {
                       Your generated photo will appear here.
                     </h2>
                     <p className="mt-4 text-sm leading-6 text-white/40">
-                      Upload at least the front image, choose the production mode
-                      and start generation.
+                      Upload at least the front image, choose the production mode and start
+                      generation.
                     </p>
                   </div>
                 )}
@@ -425,13 +429,7 @@ export default function Page() {
   );
 }
 
-function SectionTitle({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle: string;
-}) {
+function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div>
       <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-black/80">
