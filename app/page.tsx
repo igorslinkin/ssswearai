@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 type Mode =
   | "cyclorama"
@@ -12,10 +12,53 @@ type Mode =
 
 type Ratio = "4:5" | "3:4" | "9:16" | "1:1" | "2:3";
 
+const modes: {
+  value: Mode;
+  title: string;
+  description: string;
+}[] = [
+  {
+    value: "cyclorama",
+    title: "Cyclorama",
+    description: "Clean studio background",
+  },
+  {
+    value: "product",
+    title: "Product",
+    description: "Marketplace-ready frame",
+  },
+  {
+    value: "creative",
+    title: "Creative",
+    description: "Bold visual concept",
+  },
+  {
+    value: "image",
+    title: "Campaign",
+    description: "Editorial brand mood",
+  },
+  {
+    value: "mobile",
+    title: "Mobile",
+    description: "Realistic UGC photo",
+  },
+  {
+    value: "tryon",
+    title: "Try-on",
+    description: "Model wearing garment",
+  },
+];
+
+const ratios: Ratio[] = ["4:5", "3:4", "9:16", "1:1", "2:3"];
+
 async function compressImage(file: File, maxSize = 1400, quality = 0.82) {
   const imageBitmap = await createImageBitmap(file);
 
-  const scale = Math.min(1, maxSize / Math.max(imageBitmap.width, imageBitmap.height));
+  const scale = Math.min(
+    1,
+    maxSize / Math.max(imageBitmap.width, imageBitmap.height)
+  );
+
   const width = Math.round(imageBitmap.width * scale);
   const height = Math.round(imageBitmap.height * scale);
 
@@ -49,6 +92,10 @@ async function compressImage(file: File, maxSize = 1400, quality = 0.82) {
   );
 }
 
+function formatFileSize(file: File) {
+  return `${(file.size / 1024 / 1024).toFixed(2)} MB`;
+}
+
 export default function Page() {
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
@@ -62,9 +109,13 @@ export default function Page() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const uploadedCount = useMemo(() => {
+    return Number(Boolean(frontFile)) + Number(Boolean(backFile)) + detailFiles.length;
+  }, [frontFile, backFile, detailFiles]);
+
   const handleGenerate = async () => {
     if (!frontFile) {
-      setError("Загрузи FRONT фото.");
+      setError("Upload FRONT photo first.");
       return;
     }
 
@@ -100,172 +151,350 @@ export default function Page() {
       const data = await res.json();
 
       if (!data.success) {
-        setError(data.error || "Ошибка генерации.");
+        setError(data.error || "Generation failed.");
         return;
       }
 
       setImage(data.image);
     } catch (err: any) {
-      setError(err?.message || "Ошибка запроса к API.");
+      setError(err?.message || "API request failed.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main style={{ padding: 32, maxWidth: 900, margin: "0 auto", fontFamily: "Arial" }}>
-      <h1>SSSWEAR AI</h1>
-      <p>Загрузи фото изделия, выбери режим, формат и получи одну генерацию.</p>
+    <main className="min-h-screen bg-[#f7f5f0] text-[#111111]">
+      <header className="border-b border-black/10 bg-[#f7f5f0]/90 backdrop-blur">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-5">
+          <div>
+            <div className="text-sm font-semibold tracking-[0.22em]">
+              SSSWEAR AI
+            </div>
+            <div className="mt-1 text-xs text-black/50">
+              Professional fashion photography from your garment
+            </div>
+          </div>
 
-      <h3>1. Фото изделия</h3>
+          <nav className="hidden items-center gap-8 text-sm text-black/55 md:flex">
+            <button className="text-black">Studio</button>
+            <button>History</button>
+            <button>Credits</button>
+            <button>Account</button>
+          </nav>
 
-      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr 1fr" }}>
-        <UploadBox title="FRONT" file={frontFile} onChange={setFrontFile} />
-        <UploadBox title="BACK" file={backFile} onChange={setBackFile} />
-        <div>
-          <strong>DETAILS</strong>
-          <br />
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={(e) => setDetailFiles(Array.from(e.target.files || []))}
-          />
-          {detailFiles.length > 0 && (
-            <ul>
-              {detailFiles.map((file, index) => (
-                <li key={index}>
-                  {file.name} — {(file.size / 1024 / 1024).toFixed(2)} MB
-                </li>
+          <div className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm">
+            2 340 Credits
+          </div>
+        </div>
+      </header>
+
+      <section className="mx-auto grid max-w-[1440px] gap-6 px-6 py-6 lg:grid-cols-[520px_1fr]">
+        <aside className="space-y-5">
+          <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-semibold tracking-[-0.04em]">
+                  New generation
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-black/55">
+                  Upload garment photos, choose a shooting mode and create one
+                  premium AI fashion image.
+                </p>
+              </div>
+
+              <div className="rounded-full bg-black px-3 py-1 text-xs text-white">
+                {uploadedCount} files
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              <UploadCard
+                title="FRONT"
+                description="Main front view of the garment"
+                file={frontFile}
+                onChange={setFrontFile}
+                required
+              />
+
+              <UploadCard
+                title="BACK"
+                description="Back view helps preserve construction"
+                file={backFile}
+                onChange={setBackFile}
+              />
+
+              <DetailsUpload files={detailFiles} onChange={setDetailFiles} />
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
+            <SectionTitle
+              title="Photo type"
+              subtitle="Choose the production context"
+            />
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {modes.map((item) => (
+                <button
+                  key={item.value}
+                  onClick={() => setMode(item.value)}
+                  className={[
+                    "rounded-2xl border p-4 text-left transition",
+                    mode === item.value
+                      ? "border-black bg-black text-white"
+                      : "border-black/10 bg-[#fbfaf7] hover:border-black/25",
+                  ].join(" ")}
+                >
+                  <div className="text-sm font-semibold">{item.title}</div>
+                  <div
+                    className={[
+                      "mt-1 text-xs leading-5",
+                      mode === item.value ? "text-white/65" : "text-black/45",
+                    ].join(" ")}
+                  >
+                    {item.description}
+                  </div>
+                </button>
               ))}
-            </ul>
-          )}
-        </div>
-      </div>
+            </div>
+          </div>
 
-      <h3>2. Режим съемки</h3>
+          <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
+            <SectionTitle title="Format" subtitle="Final image aspect ratio" />
 
-      <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr 1fr" }}>
-        <Radio label="Циклорама" value="cyclorama" current={mode} onChange={setMode} />
-        <Radio label="Предметный кадр" value="product" current={mode} onChange={setMode} />
-        <Radio label="Креативный кадр" value="creative" current={mode} onChange={setMode} />
-        <Radio label="Имиджевая съемка" value="image" current={mode} onChange={setMode} />
-        <Radio label="Мобильная съемка" value="mobile" current={mode} onChange={setMode} />
-        <Radio label="Примерка" value="tryon" current={mode} onChange={setMode} />
-      </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {ratios.map((ratio) => (
+                <button
+                  key={ratio}
+                  onClick={() => setAspectRatio(ratio)}
+                  className={[
+                    "rounded-full border px-5 py-3 text-sm transition",
+                    aspectRatio === ratio
+                      ? "border-black bg-black text-white"
+                      : "border-black/10 bg-[#fbfaf7] hover:border-black/25",
+                  ].join(" ")}
+                >
+                  {ratio}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      <h3>3. Формат</h3>
+          <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
+            <SectionTitle
+              title="Additional instructions"
+              subtitle="Optional creative direction"
+            />
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        {(["4:5", "3:4", "9:16", "1:1", "2:3"] as Ratio[]).map((ratio) => (
-          <button
-            key={ratio}
-            onClick={() => setAspectRatio(ratio)}
-            style={{
-              padding: "10px 18px",
-              border: aspectRatio === ratio ? "2px solid black" : "1px solid #ccc",
-              background: aspectRatio === ratio ? "#eee" : "white",
-              cursor: "pointer",
-            }}
-          >
-            {ratio}
-          </button>
-        ))}
-      </div>
+            <textarea
+              value={userPrompt}
+              onChange={(e) => setUserPrompt(e.target.value)}
+              placeholder="Example: natural daylight, summer mood, realistic skin texture, street location, shot on iPhone"
+              rows={5}
+              className="mt-4 w-full resize-none rounded-2xl border border-black/10 bg-[#fbfaf7] p-4 text-sm leading-6 outline-none transition placeholder:text-black/35 focus:border-black/30"
+            />
 
-      <h3>4. Уточнение промпта</h3>
+            <button
+              onClick={handleGenerate}
+              disabled={loading}
+              className="mt-5 w-full rounded-2xl bg-black px-5 py-4 text-sm font-semibold text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/35"
+            >
+              {loading ? "Preparing photos and generating..." : "Generate photo"}
+            </button>
 
-      <textarea
-        value={userPrompt}
-        onChange={(e) => setUserPrompt(e.target.value)}
-        placeholder="Например: девушка европейской внешности, лето, зеленые деревья, естественный свет, фото как на iPhone"
-        rows={5}
-        style={{ width: "100%", padding: 12, fontSize: 14 }}
-      />
+            {error && (
+              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+          </div>
+        </aside>
 
-      <br />
-      <br />
+        <section className="min-h-[calc(100vh-120px)] rounded-[32px] border border-black/10 bg-[#111111] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.12)]">
+          <div className="flex h-full min-h-[720px] flex-col rounded-[24px] bg-[#181818]">
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+              <div>
+                <div className="text-sm font-medium text-white">Preview</div>
+                <div className="mt-1 text-xs text-white/40">
+                  Result appears here after generation
+                </div>
+              </div>
 
-      <button
-        onClick={handleGenerate}
-        disabled={loading}
-        style={{
-          padding: "14px 24px",
-          background: "black",
-          color: "white",
-          border: 0,
-          cursor: "pointer",
-        }}
-      >
-        {loading ? "Сжимаем фото и генерируем..." : "Сгенерировать фото"}
-      </button>
+              <div className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/50">
+                {aspectRatio}
+              </div>
+            </div>
 
-      {loading && <p>Генерация может занять около минуты...</p>}
+            <div className="flex flex-1 items-center justify-center p-6">
+              {loading && (
+                <div className="max-w-sm text-center">
+                  <div className="mx-auto h-10 w-10 animate-spin rounded-full border border-white/20 border-t-white" />
+                  <div className="mt-5 text-sm font-medium text-white">
+                    Creating fashion image
+                  </div>
+                  <div className="mt-2 text-sm leading-6 text-white/40">
+                    We compress your photos and generate one premium result.
+                    This can take about a minute.
+                  </div>
+                </div>
+              )}
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+              {!loading && !image && (
+                <div className="max-w-md text-center">
+                  <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/5 text-3xl">
+                    ✦
+                  </div>
+                  <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">
+                    Your generated photo will appear here.
+                  </h2>
+                  <p className="mt-4 text-sm leading-6 text-white/40">
+                    Upload at least the front image, choose the production mode
+                    and start generation.
+                  </p>
+                </div>
+              )}
 
-      {image && (
-        <div style={{ marginTop: 30 }}>
-          <h3>Результат</h3>
-          <img src={image} alt="Generated result" style={{ width: "100%", borderRadius: 16 }} />
-        </div>
-      )}
+              {!loading && image && (
+                <div className="w-full max-w-[760px]">
+                  <img
+                    src={image}
+                    alt="Generated result"
+                    className="w-full rounded-[24px] object-contain shadow-[0_30px_80px_rgba(0,0,0,0.35)]"
+                  />
+
+                  <div className="mt-5 flex justify-center gap-3">
+                    <a
+                      href={image}
+                      download="ssswear-ai-generation.png"
+                      className="rounded-full bg-white px-5 py-3 text-sm font-medium text-black"
+                    >
+                      Download
+                    </a>
+
+                    <button
+                      onClick={handleGenerate}
+                      disabled={loading}
+                      className="rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-white hover:bg-white/10"
+                    >
+                      Regenerate
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      </section>
     </main>
   );
 }
 
-function UploadBox({
+function SectionTitle({
   title,
-  file,
-  onChange,
+  subtitle,
 }: {
   title: string;
-  file: File | null;
-  onChange: (file: File | null) => void;
+  subtitle: string;
 }) {
   return (
     <div>
-      <strong>{title}</strong>
-      <br />
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => onChange(e.target.files?.[0] || null)}
-      />
-      {file && (
-        <p>
-          ✅ {file.name} — {(file.size / 1024 / 1024).toFixed(2)} MB
-        </p>
-      )}
+      <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-black/80">
+        {title}
+      </h2>
+      <p className="mt-1 text-sm text-black/45">{subtitle}</p>
     </div>
   );
 }
 
-function Radio({
-  label,
-  value,
-  current,
+function UploadCard({
+  title,
+  description,
+  file,
   onChange,
+  required,
 }: {
-  label: string;
-  value: Mode;
-  current: Mode;
-  onChange: (value: Mode) => void;
+  title: string;
+  description: string;
+  file: File | null;
+  onChange: (file: File | null) => void;
+  required?: boolean;
 }) {
   return (
-    <label
-      style={{
-        border: current === value ? "2px solid black" : "1px solid #ccc",
-        padding: 12,
-        cursor: "pointer",
-      }}
-    >
+    <label className="block cursor-pointer rounded-2xl border border-dashed border-black/15 bg-[#fbfaf7] p-4 transition hover:border-black/35">
       <input
-        type="radio"
-        checked={current === value}
-        onChange={() => onChange(value)}
-      />{" "}
-      {label}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => onChange(e.target.files?.[0] || null)}
+      />
+
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-semibold">{title}</div>
+            {required && (
+              <div className="rounded-full bg-black px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white">
+                Required
+              </div>
+            )}
+          </div>
+          <div className="mt-1 text-xs text-black/45">{description}</div>
+
+          {file && (
+            <div className="mt-3 text-xs text-black/65">
+              ✅ {file.name} — {formatFileSize(file)}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium">
+          Upload
+        </div>
+      </div>
+    </label>
+  );
+}
+
+function DetailsUpload({
+  files,
+  onChange,
+}: {
+  files: File[];
+  onChange: (files: File[]) => void;
+}) {
+  return (
+    <label className="block cursor-pointer rounded-2xl border border-dashed border-black/15 bg-[#fbfaf7] p-4 transition hover:border-black/35">
+      <input
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => onChange(Array.from(e.target.files || []))}
+      />
+
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <div className="text-sm font-semibold">DETAILS</div>
+          <div className="mt-1 text-xs text-black/45">
+            Add labels, tags, embroidery or close-up details
+          </div>
+
+          {files.length > 0 && (
+            <div className="mt-3 space-y-1 text-xs text-black/65">
+              {files.map((file, index) => (
+                <div key={`${file.name}-${index}`}>
+                  ✅ {file.name} — {formatFileSize(file)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium">
+          Add files
+        </div>
+      </div>
     </label>
   );
 }
