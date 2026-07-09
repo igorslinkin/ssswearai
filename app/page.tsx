@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { SignInButton, UserButton, useUser } from "@clerk/nextjs";
 
 type Mode =
   | "cyclorama"
@@ -17,36 +18,12 @@ const modes: {
   title: string;
   description: string;
 }[] = [
-  {
-    value: "cyclorama",
-    title: "Cyclorama",
-    description: "Clean studio background",
-  },
-  {
-    value: "product",
-    title: "Product",
-    description: "Marketplace-ready frame",
-  },
-  {
-    value: "creative",
-    title: "Creative",
-    description: "Bold visual concept",
-  },
-  {
-    value: "image",
-    title: "Campaign",
-    description: "Editorial brand mood",
-  },
-  {
-    value: "mobile",
-    title: "Mobile",
-    description: "Realistic UGC photo",
-  },
-  {
-    value: "tryon",
-    title: "Try-on",
-    description: "Model wearing garment",
-  },
+  { value: "cyclorama", title: "Cyclorama", description: "Clean studio background" },
+  { value: "product", title: "Product", description: "Marketplace-ready frame" },
+  { value: "creative", title: "Creative", description: "Bold visual concept" },
+  { value: "image", title: "Campaign", description: "Editorial brand mood" },
+  { value: "mobile", title: "Mobile", description: "Realistic UGC photo" },
+  { value: "tryon", title: "Try-on", description: "Model wearing garment" },
 ];
 
 const ratios: Ratio[] = ["4:5", "3:4", "9:16", "1:1", "2:3"];
@@ -97,6 +74,8 @@ function formatFileSize(file: File) {
 }
 
 export default function Page() {
+  const { isSignedIn, isLoaded } = useUser();
+
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
   const [detailFiles, setDetailFiles] = useState<File[]>([]);
@@ -114,6 +93,11 @@ export default function Page() {
   }, [frontFile, backFile, detailFiles]);
 
   const handleGenerate = async () => {
+    if (!isSignedIn) {
+      setError("Please sign in to generate images.");
+      return;
+    }
+
     if (!frontFile) {
       setError("Upload FRONT photo first.");
       return;
@@ -163,6 +147,14 @@ export default function Page() {
     }
   };
 
+  if (!isLoaded) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f7f5f0] text-[#111111]">
+        <p className="text-sm text-black/50">Loading...</p>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#f7f5f0] text-[#111111]">
       <header className="border-b border-black/10 bg-[#f7f5f0]/90 backdrop-blur">
@@ -183,209 +175,252 @@ export default function Page() {
             <button>Account</button>
           </nav>
 
-          <div className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm">
-            2 340 Credits
+          <div className="flex items-center gap-3">
+            {isSignedIn ? (
+              <>
+                <div className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm">
+                  2 340 Credits
+                </div>
+                <UserButton />
+              </>
+            ) : (
+              <SignInButton mode="modal">
+                <button className="rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white">
+                  Sign in
+                </button>
+              </SignInButton>
+            )}
           </div>
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-[1440px] gap-6 px-6 py-6 lg:grid-cols-[520px_1fr]">
-        <aside className="space-y-5">
-          <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <h1 className="text-3xl font-semibold tracking-[-0.04em]">
-                  New generation
-                </h1>
-                <p className="mt-2 text-sm leading-6 text-black/55">
-                  Upload garment photos, choose a shooting mode and create one
-                  premium AI fashion image.
-                </p>
-              </div>
-
-              <div className="rounded-full bg-black px-3 py-1 text-xs text-white">
-                {uploadedCount} files
-              </div>
+      {!isSignedIn ? (
+        <section className="mx-auto flex min-h-[calc(100vh-90px)] max-w-[980px] items-center justify-center px-6 py-20">
+          <div className="rounded-[36px] border border-black/10 bg-white p-10 text-center shadow-[0_30px_90px_rgba(0,0,0,0.08)]">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-black text-3xl text-white">
+              ✦
             </div>
 
-            <div className="grid gap-3">
-              <UploadCard
-                title="FRONT"
-                description="Main front view of the garment"
-                file={frontFile}
-                onChange={setFrontFile}
-                required
-              />
+            <h1 className="text-5xl font-semibold tracking-[-0.06em]">
+              Create fashion photos from your garment.
+            </h1>
 
-              <UploadCard
-                title="BACK"
-                description="Back view helps preserve construction"
-                file={backFile}
-                onChange={setBackFile}
-              />
+            <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-black/55">
+              Upload front, back and detail photos of your product. Generate
+              premium AI fashion photography for campaigns, marketplaces and
+              social media.
+            </p>
 
-              <DetailsUpload files={detailFiles} onChange={setDetailFiles} />
-            </div>
-          </div>
+            <SignInButton mode="modal">
+              <button className="mt-8 rounded-2xl bg-black px-7 py-4 text-sm font-semibold text-white transition hover:bg-black/85">
+                Sign in to start
+              </button>
+            </SignInButton>
 
-          <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
-            <SectionTitle
-              title="Photo type"
-              subtitle="Choose the production context"
-            />
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {modes.map((item) => (
-                <button
-                  key={item.value}
-                  onClick={() => setMode(item.value)}
-                  className={[
-                    "rounded-2xl border p-4 text-left transition",
-                    mode === item.value
-                      ? "border-black bg-black text-white"
-                      : "border-black/10 bg-[#fbfaf7] hover:border-black/25",
-                  ].join(" ")}
-                >
-                  <div className="text-sm font-semibold">{item.title}</div>
-                  <div
-                    className={[
-                      "mt-1 text-xs leading-5",
-                      mode === item.value ? "text-white/65" : "text-black/45",
-                    ].join(" ")}
-                  >
-                    {item.description}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
-            <SectionTitle title="Format" subtitle="Final image aspect ratio" />
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {ratios.map((ratio) => (
-                <button
-                  key={ratio}
-                  onClick={() => setAspectRatio(ratio)}
-                  className={[
-                    "rounded-full border px-5 py-3 text-sm transition",
-                    aspectRatio === ratio
-                      ? "border-black bg-black text-white"
-                      : "border-black/10 bg-[#fbfaf7] hover:border-black/25",
-                  ].join(" ")}
-                >
-                  {ratio}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
-            <SectionTitle
-              title="Additional instructions"
-              subtitle="Optional creative direction"
-            />
-
-            <textarea
-              value={userPrompt}
-              onChange={(e) => setUserPrompt(e.target.value)}
-              placeholder="Example: natural daylight, summer mood, realistic skin texture, street location, shot on iPhone"
-              rows={5}
-              className="mt-4 w-full resize-none rounded-2xl border border-black/10 bg-[#fbfaf7] p-4 text-sm leading-6 outline-none transition placeholder:text-black/35 focus:border-black/30"
-            />
-
-            <button
-              onClick={handleGenerate}
-              disabled={loading}
-              className="mt-5 w-full rounded-2xl bg-black px-5 py-4 text-sm font-semibold text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/35"
-            >
-              {loading ? "Preparing photos and generating..." : "Generate photo"}
-            </button>
-
-            {error && (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-          </div>
-        </aside>
-
-        <section className="min-h-[calc(100vh-120px)] rounded-[32px] border border-black/10 bg-[#111111] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.12)]">
-          <div className="flex h-full min-h-[720px] flex-col rounded-[24px] bg-[#181818]">
-            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-              <div>
-                <div className="text-sm font-medium text-white">Preview</div>
-                <div className="mt-1 text-xs text-white/40">
-                  Result appears here after generation
-                </div>
-              </div>
-
-              <div className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/50">
-                {aspectRatio}
-              </div>
-            </div>
-
-            <div className="flex flex-1 items-center justify-center p-6">
-              {loading && (
-                <div className="max-w-sm text-center">
-                  <div className="mx-auto h-10 w-10 animate-spin rounded-full border border-white/20 border-t-white" />
-                  <div className="mt-5 text-sm font-medium text-white">
-                    Creating fashion image
-                  </div>
-                  <div className="mt-2 text-sm leading-6 text-white/40">
-                    We compress your photos and generate one premium result.
-                    This can take about a minute.
-                  </div>
-                </div>
-              )}
-
-              {!loading && !image && (
-                <div className="max-w-md text-center">
-                  <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/5 text-3xl">
-                    ✦
-                  </div>
-                  <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">
-                    Your generated photo will appear here.
-                  </h2>
-                  <p className="mt-4 text-sm leading-6 text-white/40">
-                    Upload at least the front image, choose the production mode
-                    and start generation.
-                  </p>
-                </div>
-              )}
-
-              {!loading && image && (
-                <div className="w-full max-w-[760px]">
-                  <img
-                    src={image}
-                    alt="Generated result"
-                    className="w-full rounded-[24px] object-contain shadow-[0_30px_80px_rgba(0,0,0,0.35)]"
-                  />
-
-                  <div className="mt-5 flex justify-center gap-3">
-                    <a
-                      href={image}
-                      download="ssswear-ai-generation.png"
-                      className="rounded-full bg-white px-5 py-3 text-sm font-medium text-black"
-                    >
-                      Download
-                    </a>
-
-                    <button
-                      onClick={handleGenerate}
-                      disabled={loading}
-                      className="rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-white hover:bg-white/10"
-                    >
-                      Regenerate
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <p className="mt-4 text-xs text-black/40">
+              Email-only access. No Google login.
+            </p>
           </div>
         </section>
-      </section>
+      ) : (
+        <section className="mx-auto grid max-w-[1440px] gap-6 px-6 py-6 lg:grid-cols-[520px_1fr]">
+          <aside className="space-y-5">
+            <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-semibold tracking-[-0.04em]">
+                    New generation
+                  </h1>
+                  <p className="mt-2 text-sm leading-6 text-black/55">
+                    Upload garment photos, choose a shooting mode and create one
+                    premium AI fashion image.
+                  </p>
+                </div>
+
+                <div className="rounded-full bg-black px-3 py-1 text-xs text-white">
+                  {uploadedCount} files
+                </div>
+              </div>
+
+              <div className="grid gap-3">
+                <UploadCard
+                  title="FRONT"
+                  description="Main front view of the garment"
+                  file={frontFile}
+                  onChange={setFrontFile}
+                  required
+                />
+
+                <UploadCard
+                  title="BACK"
+                  description="Back view helps preserve construction"
+                  file={backFile}
+                  onChange={setBackFile}
+                />
+
+                <DetailsUpload files={detailFiles} onChange={setDetailFiles} />
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
+              <SectionTitle
+                title="Photo type"
+                subtitle="Choose the production context"
+              />
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                {modes.map((item) => (
+                  <button
+                    key={item.value}
+                    onClick={() => setMode(item.value)}
+                    className={[
+                      "rounded-2xl border p-4 text-left transition",
+                      mode === item.value
+                        ? "border-black bg-black text-white"
+                        : "border-black/10 bg-[#fbfaf7] hover:border-black/25",
+                    ].join(" ")}
+                  >
+                    <div className="text-sm font-semibold">{item.title}</div>
+                    <div
+                      className={[
+                        "mt-1 text-xs leading-5",
+                        mode === item.value ? "text-white/65" : "text-black/45",
+                      ].join(" ")}
+                    >
+                      {item.description}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
+              <SectionTitle title="Format" subtitle="Final image aspect ratio" />
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {ratios.map((ratio) => (
+                  <button
+                    key={ratio}
+                    onClick={() => setAspectRatio(ratio)}
+                    className={[
+                      "rounded-full border px-5 py-3 text-sm transition",
+                      aspectRatio === ratio
+                        ? "border-black bg-black text-white"
+                        : "border-black/10 bg-[#fbfaf7] hover:border-black/25",
+                    ].join(" ")}
+                  >
+                    {ratio}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
+              <SectionTitle
+                title="Additional instructions"
+                subtitle="Optional creative direction"
+              />
+
+              <textarea
+                value={userPrompt}
+                onChange={(e) => setUserPrompt(e.target.value)}
+                placeholder="Example: natural daylight, summer mood, realistic skin texture, street location, shot on iPhone"
+                rows={5}
+                className="mt-4 w-full resize-none rounded-2xl border border-black/10 bg-[#fbfaf7] p-4 text-sm leading-6 outline-none transition placeholder:text-black/35 focus:border-black/30"
+              />
+
+              <button
+                onClick={handleGenerate}
+                disabled={loading}
+                className="mt-5 w-full rounded-2xl bg-black px-5 py-4 text-sm font-semibold text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/35"
+              >
+                {loading ? "Preparing photos and generating..." : "Generate photo"}
+              </button>
+
+              {error && (
+                <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+            </div>
+          </aside>
+
+          <section className="min-h-[calc(100vh-120px)] rounded-[32px] border border-black/10 bg-[#111111] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.12)]">
+            <div className="flex h-full min-h-[720px] flex-col rounded-[24px] bg-[#181818]">
+              <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                <div>
+                  <div className="text-sm font-medium text-white">Preview</div>
+                  <div className="mt-1 text-xs text-white/40">
+                    Result appears here after generation
+                  </div>
+                </div>
+
+                <div className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/50">
+                  {aspectRatio}
+                </div>
+              </div>
+
+              <div className="flex flex-1 items-center justify-center p-6">
+                {loading && (
+                  <div className="max-w-sm text-center">
+                    <div className="mx-auto h-10 w-10 animate-spin rounded-full border border-white/20 border-t-white" />
+                    <div className="mt-5 text-sm font-medium text-white">
+                      Creating fashion image
+                    </div>
+                    <div className="mt-2 text-sm leading-6 text-white/40">
+                      We compress your photos and generate one premium result.
+                      This can take about a minute.
+                    </div>
+                  </div>
+                )}
+
+                {!loading && !image && (
+                  <div className="max-w-md text-center">
+                    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/5 text-3xl">
+                      ✦
+                    </div>
+                    <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">
+                      Your generated photo will appear here.
+                    </h2>
+                    <p className="mt-4 text-sm leading-6 text-white/40">
+                      Upload at least the front image, choose the production mode
+                      and start generation.
+                    </p>
+                  </div>
+                )}
+
+                {!loading && image && (
+                  <div className="w-full max-w-[760px]">
+                    <img
+                      src={image}
+                      alt="Generated result"
+                      className="w-full rounded-[24px] object-contain shadow-[0_30px_80px_rgba(0,0,0,0.35)]"
+                    />
+
+                    <div className="mt-5 flex justify-center gap-3">
+                      <a
+                        href={image}
+                        download="ssswear-ai-generation.png"
+                        className="rounded-full bg-white px-5 py-3 text-sm font-medium text-black"
+                      >
+                        Download
+                      </a>
+
+                      <button
+                        onClick={handleGenerate}
+                        disabled={loading}
+                        className="rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-white hover:bg-white/10"
+                      >
+                        Regenerate
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        </section>
+      )}
     </main>
   );
 }
