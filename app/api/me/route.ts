@@ -38,7 +38,7 @@ export async function GET() {
       .insert({
         clerk_user_id: user.id,
         email,
-        credits: 300,
+        credits: 130,
       })
       .select("*")
       .single();
