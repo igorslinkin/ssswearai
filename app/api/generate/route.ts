@@ -1,14 +1,34 @@
 import OpenAI from "openai";
-
-type GenerationMode =
-  | "cyclorama"
-  | "product"
-  | "creative"
-  | "image"
-  | "mobile"
-  | "tryon";
+import { auth } from "@clerk/nextjs/server";
+import {
+  GENERATION_COSTS,
+  type GenerationMode,
+} from "../../../lib/config";
+import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 type AspectRatio = "4:5" | "3:4" | "9:16" | "1:1" | "2:3";
+
+type ReservationResult = {
+  success: boolean;
+  credits: number;
+};
+
+function isGenerationMode(value: unknown): value is GenerationMode {
+  return (
+    typeof value === "string" &&
+    Object.prototype.hasOwnProperty.call(GENERATION_COSTS, value)
+  );
+}
+
+function isAspectRatio(value: unknown): value is AspectRatio {
+  return (
+    value === "4:5" ||
+    value === "3:4" ||
+    value === "9:16" ||
+    value === "1:1" ||
+    value === "2:3"
+  );
+}
 
 function getImageSize(aspectRatio: AspectRatio) {
   const sizes: Record<AspectRatio, string> = {
@@ -30,14 +50,19 @@ function buildPrompt(input: {
   const modePrompt: Record<GenerationMode, string> = {
     cyclorama:
       "Clean studio cyclorama, white or light gray seamless background, soft studio light.",
+
     product:
       "Premium product-focused photo, clean background, sharp details, suitable for marketplace.",
+
     creative:
       "Creative fashion image, expressive composition, modern lighting, premium visual style.",
+
     image:
       "Premium image campaign photo, modern minimal fashion mood, Zara / IRNBY / FRHT / Monochrome level.",
+
     mobile:
       "Realistic mobile phone photo, natural light, casual UGC feeling, slightly imperfect framing.",
+
     tryon:
       "Realistic try-on photo, real human model wearing the garment naturally.",
   };
@@ -53,6 +78,16 @@ CRITICAL GARMENT PRESERVATION:
 - Do not change text or graphic placement.
 - Do not replace the product with a generic garment.
 - If detail images are uploaded, treat them as mandatory preservation references.
+
+HUMAN REALISM:
+- Natural human skin texture.
+- Visible natural pores and minor skin imperfections.
+- Realistic facial texture.
+- No glossy skin.
+- No waxy face.
+- No plastic skin.
+- No excessive beauty retouching.
+- No over-smoothed skin.
 
 SHOOTING MODE:
 ${modePrompt[input.mode]}
@@ -81,38 +116,106 @@ async function fileToDataUrl(file: File) {
 }
 
 export async function POST(req: Request) {
+  let creditsReserved = false;
+  let userIdForRefund: string | null = null;
+  let generationCostForRefund = 0;
+
   try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return Response.json(
+        {
+          success: false,
+          error: "Unauthorized",
+        },
+        { status: 401 }
+      );
+    }
+
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
       return Response.json(
-        { success: false, error: "OPENAI_API_KEY is missing." },
+        {
+          success: false,
+          error: "OPENAI_API_KEY is missing.",
+        },
         { status: 500 }
       );
     }
 
-    const openai = new OpenAI({
-      apiKey,
-    });
-
     const formData = await req.formData();
 
-    const front = formData.get("front") as File | null;
-    const back = formData.get("back") as File | null;
-    const details = formData.getAll("details") as File[];
+    const frontValue = formData.get("front");
+    const backValue = formData.get("back");
+    const detailValues = formData.getAll("details");
 
-    const mode =
-      (formData.get("mode") as GenerationMode | null) || "cyclorama";
-    const aspectRatio =
-      (formData.get("aspectRatio") as AspectRatio | null) || "4:5";
-    const userPrompt = (formData.get("userPrompt") as string | null) || "";
+    const front = frontValue instanceof File ? frontValue : null;
+    const back = backValue instanceof File ? backValue : null;
+
+    const details = detailValues.filter(
+      (value): value is File => value instanceof File
+    );
+
+    const rawMode = formData.get("mode");
+    const rawAspectRatio = formData.get("aspectRatio");
+    const rawUserPrompt = formData.get("userPrompt");
+
+    const mode: GenerationMode = isGenerationMode(rawMode)
+      ? rawMode
+      : "cyclorama";
+
+    const aspectRatio: AspectRatio = isAspectRatio(rawAspectRatio)
+      ? rawAspectRatio
+      : "4:5";
+
+    const userPrompt =
+      typeof rawUserPrompt === "string" ? rawUserPrompt : "";
 
     if (!front) {
       return Response.json(
-        { success: false, error: "Front image is required." },
+        {
+          success: false,
+          error: "Front image is required.",
+        },
         { status: 400 }
       );
     }
+
+    const generationCost = GENERATION_COSTS[mode];
+    const supabase = createSupabaseServerClient();
+
+    const { data: reservationData, error: reservationError } =
+      await supabase.rpc("reserve_credits", {
+        p_clerk_user_id: userId,
+        p_cost: generationCost,
+      });
+
+    if (reservationError) {
+      throw reservationError;
+    }
+
+    const reservation = reservationData?.[0] as
+      | ReservationResult
+      | undefined;
+
+    if (!reservation?.success) {
+      return Response.json(
+        {
+          success: false,
+          error: "Not enough Credits.",
+          code: "INSUFFICIENT_CREDITS",
+          credits: reservation?.credits ?? 0,
+          requiredCredits: generationCost,
+        },
+        { status: 402 }
+      );
+    }
+
+    creditsReserved = true;
+    userIdForRefund = userId;
+    generationCostForRefund = generationCost;
 
     const prompt = buildPrompt({
       mode,
@@ -120,7 +223,7 @@ export async function POST(req: Request) {
       userPrompt,
     });
 
-    const content: any[] = [
+    const content: Array<Record<string, unknown>> = [
       {
         type: "input_text",
         text: prompt,
@@ -145,56 +248,111 @@ export async function POST(req: Request) {
       });
     }
 
+    const openai = new OpenAI({
+      apiKey,
+    });
+
     const response = await openai.responses.create({
       model: "gpt-5.5",
+
       input: [
         {
           role: "user",
-          content,
+          content: content as never,
         },
       ],
+
       tools: [
         {
           type: "image_generation",
           quality: "medium",
           size: getImageSize(aspectRatio),
-        } as any,
+        } as never,
       ],
+
       tool_choice: {
         type: "image_generation",
-      } as any,
+      } as never,
     });
 
     const imageCall = response.output.find(
-      (item: any) => item.type === "image_generation_call"
-    ) as any;
+      (item) => item.type === "image_generation_call"
+    ) as
+      | {
+          type: "image_generation_call";
+          result?: string;
+        }
+      | undefined;
 
     if (!imageCall?.result) {
-      return Response.json(
-        {
-          success: false,
-          error: response.output_text || "No image returned.",
-        },
-        { status: 500 }
+      throw new Error(
+        response.output_text || "No image returned from OpenAI."
       );
     }
 
+    const generatedImage = `data:image/png;base64,${imageCall.result}`;
+
+    const { error: historyError } = await supabase
+      .from("generations")
+      .insert({
+        clerk_user_id: userId,
+        mode,
+        aspect_ratio: aspectRatio,
+        prompt: userPrompt,
+        credits_spent: generationCost,
+      });
+
+    if (historyError) {
+      console.error("GENERATION HISTORY ERROR:", historyError);
+    }
+
+    creditsReserved = false;
+
     return Response.json({
       success: true,
-      image: `data:image/png;base64,${imageCall.result}`,
+      image: generatedImage,
+      credits: reservation.credits,
+      creditsSpent: generationCost,
       meta: {
         mode,
         aspectRatio,
         detailsCount: details.length,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GENERATION ERROR:", error);
+
+    if (
+      creditsReserved &&
+      userIdForRefund &&
+      generationCostForRefund > 0
+    ) {
+      try {
+        const supabase = createSupabaseServerClient();
+
+        const { error: refundError } = await supabase.rpc(
+          "refund_credits",
+          {
+            p_clerk_user_id: userIdForRefund,
+            p_cost: generationCostForRefund,
+          }
+        );
+
+        if (refundError) {
+          console.error("CREDITS REFUND ERROR:", refundError);
+        }
+      } catch (refundError) {
+        console.error("CREDITS REFUND FAILED:", refundError);
+      }
+    }
+
+    const message =
+      error instanceof Error ? error.message : "Unknown error";
 
     return Response.json(
       {
         success: false,
-        error: error?.message || "Unknown error",
+        error: message,
       },
       { status: 500 }
     );

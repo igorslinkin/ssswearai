@@ -1,4 +1,5 @@
 import { currentUser } from "@clerk/nextjs/server";
+import { DEFAULT_FREE_CREDITS } from "../../../lib/config";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
 export async function GET() {
@@ -7,22 +8,24 @@ export async function GET() {
 
     if (!user) {
       return Response.json(
-        { success: false, error: "Unauthorized" },
+        {
+          success: false,
+          error: "Unauthorized",
+        },
         { status: 401 }
       );
     }
 
     const supabase = createSupabaseServerClient();
-
     const email = user.emailAddresses[0]?.emailAddress || null;
 
     const { data: existingProfile, error: selectError } = await supabase
       .from("profiles")
       .select("*")
       .eq("clerk_user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (selectError && selectError.code !== "PGRST116") {
+    if (selectError) {
       throw selectError;
     }
 
@@ -38,7 +41,7 @@ export async function GET() {
       .insert({
         clerk_user_id: user.id,
         email,
-        credits: 130,
+        credits: DEFAULT_FREE_CREDITS,
       })
       .select("*")
       .single();
@@ -51,13 +54,16 @@ export async function GET() {
       success: true,
       profile: newProfile,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("ME API ERROR:", error);
+
+    const message =
+      error instanceof Error ? error.message : "Unknown error";
 
     return Response.json(
       {
         success: false,
-        error: error?.message || "Unknown error",
+        error: message,
       },
       { status: 500 }
     );

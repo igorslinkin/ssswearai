@@ -2,31 +2,84 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SignInButton, UserButton, useUser } from "@clerk/nextjs";
-
-type Mode =
-  | "cyclorama"
-  | "product"
-  | "creative"
-  | "image"
-  | "mobile"
-  | "tryon";
+import {
+  GENERATION_COSTS,
+  type GenerationMode,
+} from "../lib/config";
 
 type Ratio = "4:5" | "3:4" | "9:16" | "1:1" | "2:3";
 
-const modes: { value: Mode; title: string; description: string }[] = [
-  { value: "cyclorama", title: "Cyclorama", description: "Clean studio background" },
-  { value: "product", title: "Product", description: "Marketplace-ready frame" },
-  { value: "creative", title: "Creative", description: "Bold visual concept" },
-  { value: "image", title: "Campaign", description: "Editorial brand mood" },
-  { value: "mobile", title: "Mobile", description: "Realistic UGC photo" },
-  { value: "tryon", title: "Try-on", description: "Model wearing garment" },
+type ModeOption = {
+  value: GenerationMode;
+  title: string;
+  description: string;
+};
+
+type ProfileResponse = {
+  success: boolean;
+  profile?: {
+    credits: number;
+  };
+  error?: string;
+};
+
+type GenerateResponse = {
+  success: boolean;
+  image?: string;
+  credits?: number;
+  creditsSpent?: number;
+  requiredCredits?: number;
+  code?: string;
+  error?: string;
+};
+
+const modes: ModeOption[] = [
+  {
+    value: "cyclorama",
+    title: "Cyclorama",
+    description: "Clean studio background",
+  },
+  {
+    value: "product",
+    title: "Product",
+    description: "Marketplace-ready frame",
+  },
+  {
+    value: "creative",
+    title: "Creative",
+    description: "Bold visual concept",
+  },
+  {
+    value: "image",
+    title: "Campaign",
+    description: "Editorial brand mood",
+  },
+  {
+    value: "mobile",
+    title: "Mobile",
+    description: "Realistic UGC photo",
+  },
+  {
+    value: "tryon",
+    title: "Try-on",
+    description: "Model wearing garment",
+  },
 ];
 
 const ratios: Ratio[] = ["4:5", "3:4", "9:16", "1:1", "2:3"];
 
-async function compressImage(file: File, maxSize = 1400, quality = 0.82) {
+async function compressImage(
+  file: File,
+  maxSize = 1400,
+  quality = 0.82
+): Promise<File> {
   const imageBitmap = await createImageBitmap(file);
-  const scale = Math.min(1, maxSize / Math.max(imageBitmap.width, imageBitmap.height));
+
+  const scale = Math.min(
+    1,
+    maxSize / Math.max(imageBitmap.width, imageBitmap.height)
+  );
+
   const width = Math.round(imageBitmap.width * scale);
   const height = Math.round(imageBitmap.height * scale);
 
@@ -34,28 +87,41 @@ async function compressImage(file: File, maxSize = 1400, quality = 0.82) {
   canvas.width = width;
   canvas.height = height;
 
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas is not supported.");
+  const context = canvas.getContext("2d");
 
-  ctx.drawImage(imageBitmap, 0, 0, width, height);
+  if (!context) {
+    imageBitmap.close();
+    throw new Error("Canvas is not supported.");
+  }
+
+  context.drawImage(imageBitmap, 0, 0, width, height);
+  imageBitmap.close();
 
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (result) => {
-        if (result) resolve(result);
-        else reject(new Error("Image compression failed."));
+        if (result) {
+          resolve(result);
+        } else {
+          reject(new Error("Image compression failed."));
+        }
       },
       "image/jpeg",
       quality
     );
   });
 
-  return new File([blob], file.name.replace(/\.[^.]+$/, "") + "-compressed.jpg", {
-    type: "image/jpeg",
-  });
+  return new File(
+    [blob],
+    `${file.name.replace(/\.[^.]+$/, "")}-compressed.jpg`,
+    {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    }
+  );
 }
 
-function formatFileSize(file: File) {
+function formatFileSize(file: File): string {
   return `${(file.size / 1024 / 1024).toFixed(2)} MB`;
 }
 
@@ -69,13 +135,26 @@ export default function Page() {
   const [backFile, setBackFile] = useState<File | null>(null);
   const [detailFiles, setDetailFiles] = useState<File[]>([]);
 
-  const [mode, setMode] = useState<Mode>("cyclorama");
+  const [mode, setMode] = useState<GenerationMode>("cyclorama");
   const [aspectRatio, setAspectRatio] = useState<Ratio>("4:5");
   const [userPrompt, setUserPrompt] = useState("");
 
   const [image, setImage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const generationCost = GENERATION_COSTS[mode];
+
+  const hasEnoughCredits =
+    credits !== null && credits >= generationCost;
+
+  const uploadedCount = useMemo(() => {
+    return (
+      Number(Boolean(frontFile)) +
+      Number(Boolean(backFile)) +
+      detailFiles.length
+    );
+  }, [frontFile, backFile, detailFiles]);
 
   useEffect(() => {
     async function loadProfile() {
@@ -87,29 +166,46 @@ export default function Page() {
       try {
         setCreditsLoading(true);
 
-        const res = await fetch("/api/me");
-        const data = await res.json();
+        const response = await fetch("/api/me", {
+          method: "GET",
+          cache: "no-store",
+        });
 
-        if (data.success) {
-          setCredits(data.profile.credits);
+        const data = (await response.json()) as ProfileResponse;
+
+        if (!response.ok || !data.success || !data.profile) {
+          throw new Error(
+            data.error || "Failed to load user profile."
+          );
         }
-      } catch {
+
+        setCredits(data.profile.credits);
+      } catch (profileError) {
+        console.error("PROFILE LOAD ERROR:", profileError);
         setCredits(null);
       } finally {
         setCreditsLoading(false);
       }
     }
 
-    loadProfile();
+    void loadProfile();
   }, [isSignedIn]);
-
-  const uploadedCount = useMemo(() => {
-    return Number(Boolean(frontFile)) + Number(Boolean(backFile)) + detailFiles.length;
-  }, [frontFile, backFile, detailFiles]);
 
   const handleGenerate = async () => {
     if (!isSignedIn) {
       setError("Please sign in to generate images.");
+      return;
+    }
+
+    if (credits === null) {
+      setError("Credits are still loading. Please try again.");
+      return;
+    }
+
+    if (credits < generationCost) {
+      setError(
+        `Not enough Credits. This generation requires ${generationCost} Credits.`
+      );
       return;
     }
 
@@ -142,21 +238,40 @@ export default function Page() {
       formData.append("aspectRatio", aspectRatio);
       formData.append("userPrompt", userPrompt);
 
-      const res = await fetch("/api/generate", {
+      const response = await fetch("/api/generate", {
         method: "POST",
         body: formData,
       });
 
-      const data = await res.json();
+      const data = (await response.json()) as GenerateResponse;
 
-      if (!data.success) {
+      if (typeof data.credits === "number") {
+        setCredits(data.credits);
+      }
+
+      if (!response.ok || !data.success || !data.image) {
+        if (data.code === "INSUFFICIENT_CREDITS") {
+          setError(
+            `Not enough Credits. Required: ${
+              data.requiredCredits ?? generationCost
+            }.`
+          );
+          return;
+        }
+
         setError(data.error || "Generation failed.");
         return;
       }
 
       setImage(data.image);
-    } catch (err: any) {
-      setError(err?.message || "API request failed.");
+    } catch (generationError) {
+      console.error("GENERATION REQUEST ERROR:", generationError);
+
+      setError(
+        generationError instanceof Error
+          ? generationError.message
+          : "API request failed."
+      );
     } finally {
       setLoading(false);
     }
@@ -175,17 +290,25 @@ export default function Page() {
       <header className="border-b border-black/10 bg-[#f7f5f0]/90 backdrop-blur">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-5">
           <div>
-            <div className="text-sm font-semibold tracking-[0.22em]">SSSWEAR AI</div>
+            <div className="text-sm font-semibold tracking-[0.22em]">
+              SSSWEAR AI
+            </div>
+
             <div className="mt-1 text-xs text-black/50">
               Professional fashion photography from your garment
             </div>
           </div>
 
           <nav className="hidden items-center gap-8 text-sm text-black/55 md:flex">
-            <button className="text-black">Studio</button>
-            <button>History</button>
-            <button>Credits</button>
-            <button>Account</button>
+            <button type="button" className="text-black">
+              Studio
+            </button>
+
+            <button type="button">History</button>
+
+            <button type="button">Credits</button>
+
+            <button type="button">Account</button>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -196,11 +319,15 @@ export default function Page() {
                     ? "Loading Credits"
                     : `${credits ?? 0} Credits`}
                 </div>
+
                 <UserButton />
               </>
             ) : (
               <SignInButton mode="modal">
-                <button className="rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white">
+                <button
+                  type="button"
+                  className="rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white"
+                >
                   Sign in
                 </button>
               </SignInButton>
@@ -221,17 +348,23 @@ export default function Page() {
             </h1>
 
             <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-black/55">
-              Upload front, back and detail photos of your product. Generate premium AI fashion
-              photography for campaigns, marketplaces and social media.
+              Upload front, back and detail photos of your product.
+              Generate premium AI fashion photography for campaigns,
+              marketplaces and social media.
             </p>
 
             <SignInButton mode="modal">
-              <button className="mt-8 rounded-2xl bg-black px-7 py-4 text-sm font-semibold text-white transition hover:bg-black/85">
+              <button
+                type="button"
+                className="mt-8 rounded-2xl bg-black px-7 py-4 text-sm font-semibold text-white transition hover:bg-black/85"
+              >
                 Sign in to start
               </button>
             </SignInButton>
 
-            <p className="mt-4 text-xs text-black/40">Email-only access. No Google login.</p>
+            <p className="mt-4 text-xs text-black/40">
+              Email-only access. No Google login.
+            </p>
           </div>
         </section>
       ) : (
@@ -240,10 +373,13 @@ export default function Page() {
             <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
-                  <h1 className="text-3xl font-semibold tracking-[-0.04em]">New generation</h1>
+                  <h1 className="text-3xl font-semibold tracking-[-0.04em]">
+                    New generation
+                  </h1>
+
                   <p className="mt-2 text-sm leading-6 text-black/55">
-                    Upload garment photos, choose a shooting mode and create one premium AI fashion
-                    image.
+                    Upload garment photos, choose a shooting mode and
+                    create one premium AI fashion image.
                   </p>
                 </div>
 
@@ -268,46 +404,79 @@ export default function Page() {
                   onChange={setBackFile}
                 />
 
-                <DetailsUpload files={detailFiles} onChange={setDetailFiles} />
+                <DetailsUpload
+                  files={detailFiles}
+                  onChange={setDetailFiles}
+                />
               </div>
             </div>
 
             <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
-              <SectionTitle title="Photo type" subtitle="Choose the production context" />
+              <SectionTitle
+                title="Photo type"
+                subtitle="Choose the production context"
+              />
 
               <div className="mt-4 grid grid-cols-2 gap-3">
-                {modes.map((item) => (
-                  <button
-                    key={item.value}
-                    onClick={() => setMode(item.value)}
-                    className={[
-                      "rounded-2xl border p-4 text-left transition",
-                      mode === item.value
-                        ? "border-black bg-black text-white"
-                        : "border-black/10 bg-[#fbfaf7] hover:border-black/25",
-                    ].join(" ")}
-                  >
-                    <div className="text-sm font-semibold">{item.title}</div>
-                    <div
+                {modes.map((item) => {
+                  const selected = mode === item.value;
+                  const itemCost = GENERATION_COSTS[item.value];
+
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => {
+                        setMode(item.value);
+                        setError("");
+                      }}
                       className={[
-                        "mt-1 text-xs leading-5",
-                        mode === item.value ? "text-white/65" : "text-black/45",
+                        "rounded-2xl border p-4 text-left transition",
+                        selected
+                          ? "border-black bg-black text-white"
+                          : "border-black/10 bg-[#fbfaf7] hover:border-black/25",
                       ].join(" ")}
                     >
-                      {item.description}
-                    </div>
-                  </button>
-                ))}
+                      <div className="text-sm font-semibold">
+                        {item.title}
+                      </div>
+
+                      <div
+                        className={[
+                          "mt-1 text-xs leading-5",
+                          selected
+                            ? "text-white/65"
+                            : "text-black/45",
+                        ].join(" ")}
+                      >
+                        {item.description}
+                      </div>
+
+                      <div
+                        className={[
+                          "mt-3 text-xs font-semibold",
+                          selected ? "text-white" : "text-black",
+                        ].join(" ")}
+                      >
+                        {itemCost} Credits
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
-              <SectionTitle title="Format" subtitle="Final image aspect ratio" />
+              <SectionTitle
+                title="Format"
+                subtitle="Final image aspect ratio"
+              />
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {ratios.map((ratio) => (
                   <button
                     key={ratio}
+                    type="button"
                     onClick={() => setAspectRatio(ratio)}
                     className={[
                       "rounded-full border px-5 py-3 text-sm transition",
@@ -323,23 +492,62 @@ export default function Page() {
             </div>
 
             <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
-              <SectionTitle title="Additional instructions" subtitle="Optional creative direction" />
+              <SectionTitle
+                title="Additional instructions"
+                subtitle="Optional creative direction"
+              />
 
               <textarea
                 value={userPrompt}
-                onChange={(e) => setUserPrompt(e.target.value)}
+                onChange={(event) =>
+                  setUserPrompt(event.target.value)
+                }
                 placeholder="Example: natural daylight, summer mood, realistic skin texture, street location, shot on iPhone"
                 rows={5}
                 className="mt-4 w-full resize-none rounded-2xl border border-black/10 bg-[#fbfaf7] p-4 text-sm leading-6 outline-none transition placeholder:text-black/35 focus:border-black/30"
               />
 
               <button
+                type="button"
                 onClick={handleGenerate}
-                disabled={loading}
+                disabled={
+                  loading ||
+                  creditsLoading ||
+                  credits === null ||
+                  !hasEnoughCredits
+                }
                 className="mt-5 w-full rounded-2xl bg-black px-5 py-4 text-sm font-semibold text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/35"
               >
-                {loading ? "Preparing photos and generating..." : "Generate photo"}
+                {loading
+                  ? "Preparing photos and generating..."
+                  : creditsLoading || credits === null
+                    ? "Loading Credits..."
+                    : !hasEnoughCredits
+                      ? `Not enough Credits • ${generationCost} required`
+                      : `Generate photo • ${generationCost} Credits`}
               </button>
+
+              {!creditsLoading &&
+                credits !== null &&
+                !hasEnoughCredits && (
+                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <div className="text-sm font-medium text-amber-900">
+                      You do not have enough Credits.
+                    </div>
+
+                    <div className="mt-1 text-xs leading-5 text-amber-700">
+                      Your balance is {credits} Credits. This mode
+                      requires {generationCost} Credits.
+                    </div>
+
+                    <button
+                      type="button"
+                      className="mt-3 rounded-full bg-amber-900 px-4 py-2 text-xs font-medium text-white"
+                    >
+                      Buy Credits
+                    </button>
+                  </div>
+                )}
 
               {error && (
                 <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -353,14 +561,23 @@ export default function Page() {
             <div className="flex h-full min-h-[720px] flex-col rounded-[24px] bg-[#181818]">
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                 <div>
-                  <div className="text-sm font-medium text-white">Preview</div>
+                  <div className="text-sm font-medium text-white">
+                    Preview
+                  </div>
+
                   <div className="mt-1 text-xs text-white/40">
                     Result appears here after generation
                   </div>
                 </div>
 
-                <div className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/50">
-                  {aspectRatio}
+                <div className="flex items-center gap-2">
+                  <div className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/50">
+                    {generationCost} Credits
+                  </div>
+
+                  <div className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/50">
+                    {aspectRatio}
+                  </div>
                 </div>
               </div>
 
@@ -368,12 +585,19 @@ export default function Page() {
                 {loading && (
                   <div className="max-w-sm text-center">
                     <div className="mx-auto h-10 w-10 animate-spin rounded-full border border-white/20 border-t-white" />
+
                     <div className="mt-5 text-sm font-medium text-white">
                       Creating fashion image
                     </div>
+
                     <div className="mt-2 text-sm leading-6 text-white/40">
-                      We compress your photos and generate one premium result. This can take about a
-                      minute.
+                      We compress your photos and generate one premium
+                      result. This can take about a minute.
+                    </div>
+
+                    <div className="mt-3 text-xs text-white/30">
+                      {generationCost} Credits are reserved during
+                      generation.
                     </div>
                   </div>
                 )}
@@ -383,12 +607,14 @@ export default function Page() {
                     <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/5 text-3xl">
                       ✦
                     </div>
+
                     <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">
                       Your generated photo will appear here.
                     </h2>
+
                     <p className="mt-4 text-sm leading-6 text-white/40">
-                      Upload at least the front image, choose the production mode and start
-                      generation.
+                      Upload at least the front image, choose the
+                      production mode and start generation.
                     </p>
                   </div>
                 )}
@@ -401,7 +627,7 @@ export default function Page() {
                       className="w-full rounded-[24px] object-contain shadow-[0_30px_80px_rgba(0,0,0,0.35)]"
                     />
 
-                    <div className="mt-5 flex justify-center gap-3">
+                    <div className="mt-5 flex flex-wrap justify-center gap-3">
                       <a
                         href={image}
                         download="ssswear-ai-generation.png"
@@ -411,11 +637,16 @@ export default function Page() {
                       </a>
 
                       <button
+                        type="button"
                         onClick={handleGenerate}
-                        disabled={loading}
-                        className="rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-white hover:bg-white/10"
+                        disabled={
+                          loading ||
+                          credits === null ||
+                          credits < generationCost
+                        }
+                        className="rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        Regenerate
+                        Regenerate • {generationCost} Credits
                       </button>
                     </div>
                   </div>
@@ -429,12 +660,19 @@ export default function Page() {
   );
 }
 
-function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
+function SectionTitle({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) {
   return (
     <div>
       <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-black/80">
         {title}
       </h2>
+
       <p className="mt-1 text-sm text-black/45">{subtitle}</p>
     </div>
   );
@@ -459,30 +697,36 @@ function UploadCard({
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={(e) => onChange(e.target.files?.[0] || null)}
+        onChange={(event) =>
+          onChange(event.target.files?.[0] || null)
+        }
       />
 
       <div className="flex items-center justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <div className="text-sm font-semibold">{title}</div>
+
             {required && (
               <div className="rounded-full bg-black px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white">
                 Required
               </div>
             )}
           </div>
-          <div className="mt-1 text-xs text-black/45">{description}</div>
+
+          <div className="mt-1 text-xs text-black/45">
+            {description}
+          </div>
 
           {file && (
-            <div className="mt-3 text-xs text-black/65">
+            <div className="mt-3 break-all text-xs text-black/65">
               ✅ {file.name} — {formatFileSize(file)}
             </div>
           )}
         </div>
 
-        <div className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium">
-          Upload
+        <div className="shrink-0 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium">
+          {file ? "Replace" : "Upload"}
         </div>
       </div>
     </label>
@@ -503,12 +747,15 @@ function DetailsUpload({
         accept="image/*"
         multiple
         className="hidden"
-        onChange={(e) => onChange(Array.from(e.target.files || []))}
+        onChange={(event) =>
+          onChange(Array.from(event.target.files || []))
+        }
       />
 
       <div className="flex items-center justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <div className="text-sm font-semibold">DETAILS</div>
+
           <div className="mt-1 text-xs text-black/45">
             Add labels, tags, embroidery or close-up details
           </div>
@@ -516,7 +763,10 @@ function DetailsUpload({
           {files.length > 0 && (
             <div className="mt-3 space-y-1 text-xs text-black/65">
               {files.map((file, index) => (
-                <div key={`${file.name}-${index}`}>
+                <div
+                  key={`${file.name}-${file.lastModified}-${index}`}
+                  className="break-all"
+                >
                   ✅ {file.name} — {formatFileSize(file)}
                 </div>
               ))}
@@ -524,8 +774,8 @@ function DetailsUpload({
           )}
         </div>
 
-        <div className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium">
-          Add files
+        <div className="shrink-0 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium">
+          {files.length > 0 ? "Replace files" : "Add files"}
         </div>
       </div>
     </label>
