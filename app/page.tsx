@@ -26,6 +26,7 @@ type ProfileResponse = {
 type GenerateResponse = {
   success: boolean;
   image?: string;
+  imagePath?: string;
   credits?: number;
   creditsSpent?: number;
   requiredCredits?: number;
@@ -125,6 +126,18 @@ function formatFileSize(file: File): string {
   return `${(file.size / 1024 / 1024).toFixed(2)} MB`;
 }
 
+function createDownloadFileName(): string {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+
+  return `ssswear-ai-${year}-${month}-${day}-${hours}-${minutes}.png`;
+}
+
 export default function Page() {
   const { isSignedIn, isLoaded } = useUser();
 
@@ -140,8 +153,10 @@ export default function Page() {
   const [userPrompt, setUserPrompt] = useState("");
 
   const [image, setImage] = useState("");
+  const [imagePath, setImagePath] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const generationCost = GENERATION_COSTS[mode];
 
@@ -191,6 +206,54 @@ export default function Page() {
     void loadProfile();
   }, [isSignedIn]);
 
+  const handleDownload = async () => {
+    if (!image || downloading) {
+      return;
+    }
+
+    try {
+      setDownloading(true);
+      setError("");
+
+      const response = await fetch(image, {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          "The download link has expired. Generate a new link or refresh the image."
+        );
+      }
+
+      const blob = await response.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = createDownloadFileName();
+      anchor.style.display = "none";
+
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(objectUrl);
+      }, 1000);
+    } catch (downloadError) {
+      console.error("IMAGE DOWNLOAD ERROR:", downloadError);
+
+      setError(
+        downloadError instanceof Error
+          ? downloadError.message
+          : "Image download failed."
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!isSignedIn) {
       setError("Please sign in to generate images.");
@@ -217,6 +280,7 @@ export default function Page() {
     setLoading(true);
     setError("");
     setImage("");
+    setImagePath("");
 
     try {
       const formData = new FormData();
@@ -264,6 +328,7 @@ export default function Page() {
       }
 
       setImage(data.image);
+      setImagePath(data.imagePath || "");
     } catch (generationError) {
       console.error("GENERATION REQUEST ERROR:", generationError);
 
@@ -628,13 +693,14 @@ export default function Page() {
                     />
 
                     <div className="mt-5 flex flex-wrap justify-center gap-3">
-                      <a
-                        href={image}
-                        download="ssswear-ai-generation.png"
-                        className="rounded-full bg-white px-5 py-3 text-sm font-medium text-black"
+                      <button
+                        type="button"
+                        onClick={handleDownload}
+                        disabled={downloading}
+                        className="rounded-full bg-white px-5 py-3 text-sm font-medium text-black transition hover:bg-white/85 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Download
-                      </a>
+                        {downloading ? "Downloading..." : "Download PNG"}
+                      </button>
 
                       <button
                         type="button"
@@ -649,6 +715,12 @@ export default function Page() {
                         Regenerate • {generationCost} Credits
                       </button>
                     </div>
+
+                    {imagePath && (
+                      <div className="mt-4 text-center text-[11px] text-white/25">
+                        Saved securely in your generation history
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

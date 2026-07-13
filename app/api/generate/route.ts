@@ -5,6 +5,11 @@ import {
   type GenerationMode,
 } from "../../../lib/config";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import {
+  createGenerationSignedUrl,
+  removeGeneratedImage,
+  uploadGeneratedImage,
+} from "../../../lib/storage";
 
 type AspectRatio = "4:5" | "3:4" | "9:16" | "1:1" | "2:3";
 
@@ -50,19 +55,14 @@ function buildPrompt(input: {
   const modePrompt: Record<GenerationMode, string> = {
     cyclorama:
       "Clean studio cyclorama, white or light gray seamless background, soft studio light.",
-
     product:
       "Premium product-focused photo, clean background, sharp details, suitable for marketplace.",
-
     creative:
       "Creative fashion image, expressive composition, modern lighting, premium visual style.",
-
     image:
       "Premium image campaign photo, modern minimal fashion mood, Zara / IRNBY / FRHT / Monochrome level.",
-
     mobile:
       "Realistic mobile phone photo, natural light, casual UGC feeling, slightly imperfect framing.",
-
     tryon:
       "Realistic try-on photo, real human model wearing the garment naturally.",
   };
@@ -119,6 +119,7 @@ export async function POST(req: Request) {
   let creditsReserved = false;
   let userIdForRefund: string | null = null;
   let generationCostForRefund = 0;
+  let uploadedImagePath: string | null = null;
 
   try {
     const { userId } = await auth();
@@ -254,14 +255,12 @@ export async function POST(req: Request) {
 
     const response = await openai.responses.create({
       model: "gpt-5.5",
-
       input: [
         {
           role: "user",
           content: content as never,
         },
       ],
-
       tools: [
         {
           type: "image_generation",
@@ -269,7 +268,6 @@ export async function POST(req: Request) {
           size: getImageSize(aspectRatio),
         } as never,
       ],
-
       tool_choice: {
         type: "image_generation",
       } as never,
@@ -290,7 +288,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const generatedImage = `data:image/png;base64,${imageCall.result}`;
+    uploadedImagePath = await uploadGeneratedImage(imageCall.result);
+
+    const signedImageUrl = await createGenerationSignedUrl(
+      uploadedImagePath
+    );
 
     const { error: historyError } = await supabase
       .from("generations")
@@ -300,17 +302,21 @@ export async function POST(req: Request) {
         aspect_ratio: aspectRatio,
         prompt: userPrompt,
         credits_spent: generationCost,
+        image_path: uploadedImagePath,
       });
 
     if (historyError) {
-      console.error("GENERATION HISTORY ERROR:", historyError);
+      throw new Error(
+        `Generation history save failed: ${historyError.message}`
+      );
     }
 
     creditsReserved = false;
 
     return Response.json({
       success: true,
-      image: generatedImage,
+      image: signedImageUrl,
+      imagePath: uploadedImagePath,
       credits: reservation.credits,
       creditsSpent: generationCost,
       meta: {
@@ -321,6 +327,14 @@ export async function POST(req: Request) {
     });
   } catch (error: unknown) {
     console.error("GENERATION ERROR:", error);
+
+    if (uploadedImagePath) {
+      try {
+        await removeGeneratedImage(uploadedImagePath);
+      } catch (cleanupError) {
+        console.error("STORAGE CLEANUP ERROR:", cleanupError);
+      }
+    }
 
     if (
       creditsReserved &&
