@@ -10,13 +10,9 @@ import {
   removeGeneratedImage,
   uploadGeneratedImage,
 } from "../../../lib/storage";
+import { CreditService } from "../../../lib/services/credit.service";
 
 type AspectRatio = "4:5" | "3:4" | "9:16" | "1:1" | "2:3";
-
-type ReservationResult = {
-  success: boolean;
-  credits: number;
-};
 
 function isGenerationMode(value: unknown): value is GenerationMode {
   return (
@@ -184,22 +180,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const generationCost = GENERATION_COSTS[mode];
-    const supabase = createSupabaseServerClient();
+const generationCost = GENERATION_COSTS[mode];
+const supabase = createSupabaseServerClient();
 
-    const { data: reservationData, error: reservationError } =
-      await supabase.rpc("reserve_credits", {
-        p_clerk_user_id: userId,
-        p_cost: generationCost,
-      });
-
-    if (reservationError) {
-      throw reservationError;
-    }
-
-    const reservation = reservationData?.[0] as
-      | ReservationResult
-      | undefined;
+const reservation = await CreditService.reserveCredits(
+  userId,
+  generationCost
+);
 
     if (!reservation?.success) {
       return Response.json(
@@ -207,7 +194,7 @@ export async function POST(req: Request) {
           success: false,
           error: "Not enough Credits.",
           code: "INSUFFICIENT_CREDITS",
-          credits: reservation?.credits ?? 0,
+          credits: reservation.credits,
           requiredCredits: generationCost,
         },
         { status: 402 }
@@ -342,19 +329,10 @@ export async function POST(req: Request) {
       generationCostForRefund > 0
     ) {
       try {
-        const supabase = createSupabaseServerClient();
-
-        const { error: refundError } = await supabase.rpc(
-          "refund_credits",
-          {
-            p_clerk_user_id: userIdForRefund,
-            p_cost: generationCostForRefund,
-          }
-        );
-
-        if (refundError) {
-          console.error("CREDITS REFUND ERROR:", refundError);
-        }
+        await CreditService.refundCredits(
+  userIdForRefund,
+  generationCostForRefund
+);
       } catch (refundError) {
         console.error("CREDITS REFUND FAILED:", refundError);
       }
