@@ -1,21 +1,18 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "SSSWEAR AI",
-  description: "Professional AI fashion photography from your garment.",
+  title: {
+    default: "SSSWEAR AI — фотографии одежды без фотостудии",
+    template: "%s — SSSWEAR AI",
+  },
+  description:
+    "Создавайте каталожные, имиджевые и lifestyle-фотографии одежды за минуты — без моделей, фотографов и студии.",
+  applicationName: "SSSWEAR AI",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -25,11 +22,10 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html
-        lang="en"
-        className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      >
-        <body className="min-h-full flex flex-col">{children}</body>
+      <html lang="ru" className="h-full scroll-smooth antialiased">
+        <body className="min-h-full bg-[#f4f3ef] text-[#111111]">
+          {children}
+        </body>
       </html>
     </ClerkProvider>
   );

@@ -1,20 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { SignInButton, UserButton, useUser } from "@clerk/nextjs";
 import {
-  GENERATION_COSTS,
-  type GenerationMode,
-} from "../lib/config";
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { SignInButton, UserButton, useUser } from "@clerk/nextjs";
+import { GENERATION_COSTS, type GenerationMode } from "../lib/config";
 
 type Ratio = "4:5" | "3:4" | "9:16" | "1:1" | "2:3";
 type AppView = "studio" | "history" | "credits" | "account";
-
-type ModeOption = {
-  value: GenerationMode;
-  title: string;
-  description: string;
-};
 
 type ProfileResponse = {
   success: boolean;
@@ -77,60 +75,149 @@ type HistoryResponse = {
   error?: string;
 };
 
-const modes: ModeOption[] = [
+type Locale = "ru" | "en";
+
+type LocalizedText = {
+  ru: string;
+  en: string;
+};
+
+type LocalizedModeOption = {
+  value: GenerationMode;
+  title: LocalizedText;
+  description: LocalizedText;
+};
+
+const LocaleContext = createContext<Locale>("ru");
+
+function useLocale(): Locale {
+  return useContext(LocaleContext);
+}
+
+function ui(locale: Locale, ru: string, en: string): string {
+  return locale === "ru" ? ru : en;
+}
+
+const modes: LocalizedModeOption[] = [
   {
     value: "cyclorama",
-    title: "Cyclorama",
-    description: "Clean studio background",
+    title: { ru: "Циклорама", en: "Cyclorama" },
+    description: { ru: "Чистый студийный фон", en: "Clean studio background" },
   },
   {
     value: "product",
-    title: "Product",
-    description: "Marketplace-ready frame",
+    title: { ru: "Карточка товара", en: "Product" },
+    description: {
+      ru: "Кадр для сайта и маркетплейса",
+      en: "Marketplace-ready frame",
+    },
   },
   {
     value: "creative",
-    title: "Creative",
-    description: "Bold visual concept",
+    title: { ru: "Креатив", en: "Creative" },
+    description: {
+      ru: "Яркая визуальная концепция",
+      en: "Bold visual concept",
+    },
   },
   {
     value: "image",
-    title: "Campaign",
-    description: "Editorial brand mood",
+    title: { ru: "Имиджевая съёмка", en: "Campaign" },
+    description: {
+      ru: "Атмосферная съёмка бренда",
+      en: "Editorial brand mood",
+    },
   },
   {
     value: "mobile",
-    title: "Mobile",
-    description: "Realistic UGC photo",
+    title: { ru: "Мобильная съёмка", en: "Mobile" },
+    description: {
+      ru: "Реалистичный кадр на телефон",
+      en: "Realistic UGC photo",
+    },
   },
   {
     value: "tryon",
-    title: "Try-on",
-    description: "Model wearing garment",
+    title: { ru: "Виртуальная примерка", en: "Try-on" },
+    description: { ru: "Изделие на человеке", en: "Model wearing garment" },
   },
 ];
 
 const ratios: Ratio[] = ["4:5", "3:4", "9:16", "1:1", "2:3"];
 
-const modeTitles: Record<GenerationMode, string> = {
-  cyclorama: "Cyclorama",
-  product: "Product",
-  creative: "Creative",
-  image: "Campaign",
-  mobile: "Mobile",
-  tryon: "Try-on",
+const modeTitles: Record<GenerationMode, LocalizedText> = {
+  cyclorama: { ru: "Циклорама", en: "Cyclorama" },
+  product: { ru: "Карточка товара", en: "Product" },
+  creative: { ru: "Креативная съёмка", en: "Creative" },
+  image: { ru: "Имиджевая съёмка", en: "Campaign" },
+  mobile: { ru: "Мобильная съёмка", en: "Mobile" },
+  tryon: { ru: "Виртуальная примерка", en: "Try-on" },
 };
+
+const generationStatuses: LocalizedText[] = [
+  { ru: "Загружаем фотографии изделия…", en: "Uploading garment photos…" },
+  {
+    ru: "Изучаем форму и конструкцию…",
+    en: "Analyzing shape and construction…",
+  },
+  {
+    ru: "Рассматриваем детали и фактуру…",
+    en: "Studying details and texture…",
+  },
+  {
+    ru: "Продумываем образ и композицию…",
+    en: "Building the look and composition…",
+  },
+  { ru: "Подбираем подходящую сцену…", en: "Finding the right scene…" },
+  {
+    ru: "Настраиваем свет и перспективу…",
+    en: "Adjusting light and perspective…",
+  },
+  {
+    ru: "Фотограф уже работает над кадром…",
+    en: "The photographer is working on the shot…",
+  },
+  { ru: "Дорабатываем мелкие детали…", en: "Refining the small details…" },
+  { ru: "Выбираем лучший результат…", en: "Selecting the best result…" },
+  {
+    ru: "Финальная обработка — почти готово…",
+    en: "Final retouching — almost ready…",
+  },
+];
+
+const generationTips: LocalizedText[] = [
+  {
+    ru: "Чем лучше видно изделие, тем точнее получится результат.",
+    en: "The clearer the garment is visible, the more accurate the result.",
+  },
+  {
+    ru: "Фотографии деталей помогают сохранить вышивку, принты и фактуру.",
+    en: "Detail photos help preserve embroidery, prints, and texture.",
+  },
+  {
+    ru: "Старайтесь фотографировать вещь при ровном естественном свете.",
+    en: "Photograph the garment in soft, even natural light.",
+  },
+  {
+    ru: "Не обрезайте края изделия на исходной фотографии.",
+    en: "Keep the full garment inside the source frame.",
+  },
+  {
+    ru: "В пожеланиях можно указать модель, локацию, свет и настроение.",
+    en: "Use the prompt to specify the model, location, lighting, and mood.",
+  },
+];
 
 async function compressImage(
   file: File,
   maxSize = 1400,
-  quality = 0.82
+  quality = 0.82,
 ): Promise<File> {
   const imageBitmap = await createImageBitmap(file);
 
   const scale = Math.min(
     1,
-    maxSize / Math.max(imageBitmap.width, imageBitmap.height)
+    maxSize / Math.max(imageBitmap.width, imageBitmap.height),
   );
 
   const width = Math.round(imageBitmap.width * scale);
@@ -144,7 +231,7 @@ async function compressImage(
 
   if (!context) {
     imageBitmap.close();
-    throw new Error("Canvas is not supported.");
+    throw new Error("Ваш браузер не поддерживает обработку изображения.");
   }
 
   context.drawImage(imageBitmap, 0, 0, width, height);
@@ -156,11 +243,11 @@ async function compressImage(
         if (result) {
           resolve(result);
         } else {
-          reject(new Error("Image compression failed."));
+          reject(new Error("Не удалось подготовить изображение."));
         }
       },
       "image/jpeg",
-      quality
+      quality,
     );
   });
 
@@ -170,7 +257,7 @@ async function compressImage(
     {
       type: "image/jpeg",
       lastModified: Date.now(),
-    }
+    },
   );
 }
 
@@ -180,7 +267,7 @@ function formatFileSize(file: File): string {
 
 function createDownloadFileName(
   prefix = "ssswear-ai",
-  extension = "png"
+  extension = "png",
 ): string {
   const now = new Date();
 
@@ -193,8 +280,8 @@ function createDownloadFileName(
   return `${prefix}-${year}-${month}-${day}-${hours}-${minutes}.${extension}`;
 }
 
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("en", {
+function formatDate(value: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -203,34 +290,85 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
-function formatCredits(value: number): string {
-  return new Intl.NumberFormat("en-US").format(value);
+function formatCredits(value: number, locale: Locale): string {
+  return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US").format(
+    value,
+  );
 }
 
-function getTransactionTitle(transaction: CreditTransaction): string {
+function getTransactionTitle(
+  transaction: CreditTransaction,
+  locale: Locale,
+): string {
   if (transaction.description?.trim()) {
     return transaction.description;
   }
 
   if (transaction.type === "generation") {
-    return "Image generation";
+    return ui(locale, "Генерация изображения", "Image generation");
   }
 
   if (transaction.type === "purchase") {
-    return "Credits purchase";
+    return ui(locale, "Покупка кредитов", "Credit purchase");
   }
 
   if (transaction.type === "refund") {
-    return "Credits refund";
+    return ui(locale, "Возврат кредитов", "Credit refund");
   }
 
-  return "Credits transaction";
+  return ui(locale, "Операция с кредитами", "Credit transaction");
 }
 
 export default function Page() {
   const { isSignedIn, isLoaded, user } = useUser();
+  const [locale, setLocale] = useState<Locale>("ru");
+
+  useEffect(() => {
+    const savedLocale = window.localStorage.getItem("ssswear-ai-locale");
+    const initialLocale = savedLocale === "ru" || savedLocale === "en"
+      ? savedLocale
+      : "ru";
+    const timeout = window.setTimeout(() => setLocale(initialLocale), 0);
+
+    return () => window.clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
+  const changeLocale = (nextLocale: Locale) => {
+    setLocale(nextLocale);
+    window.localStorage.setItem("ssswear-ai-locale", nextLocale);
+  };
 
   const [activeView, setActiveView] = useState<AppView>("studio");
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+
+  const welcomeStorageKey = useMemo(
+    () => `ssswear-ai-welcome-v1:${user?.id ?? "guest"}`,
+    [user?.id],
+  );
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      if (!isLoaded || !isSignedIn || !user?.id) {
+        setWelcomeOpen(false);
+        return;
+      }
+
+      setWelcomeOpen(
+        window.localStorage.getItem(welcomeStorageKey) !== "seen",
+      );
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [isLoaded, isSignedIn, user?.id, welcomeStorageKey]);
+
+  const closeWelcome = () => {
+    window.localStorage.setItem(welcomeStorageKey, "seen");
+    setWelcomeOpen(false);
+  };
 
   const [credits, setCredits] = useState<number | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(false);
@@ -265,8 +403,7 @@ export default function Page() {
 
   const generationCost = GENERATION_COSTS[mode];
 
-  const hasEnoughCredits =
-    credits !== null && credits >= generationCost;
+  const hasEnoughCredits = credits !== null && credits >= generationCost;
 
   const uploadedCount = useMemo(() => {
     return (
@@ -294,7 +431,12 @@ export default function Page() {
 
       if (!response.ok || !data.success || !data.profile) {
         throw new Error(
-          data.error || "Failed to load user profile."
+          data.error ||
+            ui(
+              locale,
+              "Не удалось загрузить профиль.",
+              "Failed to load user profile.",
+            ),
         );
       }
 
@@ -305,7 +447,7 @@ export default function Page() {
     } finally {
       setCreditsLoading(false);
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, locale]);
 
   const loadHistory = useCallback(
     async ({
@@ -340,7 +482,7 @@ export default function Page() {
           {
             method: "GET",
             cache: "no-store",
-          }
+          },
         );
 
         const data = (await response.json()) as HistoryResponse;
@@ -353,7 +495,12 @@ export default function Page() {
           !data.history
         ) {
           throw new Error(
-            data.error || "Failed to load generation history."
+            data.error ||
+              ui(
+                locale,
+                "Не удалось загрузить историю генераций.",
+                "Failed to load generation history.",
+              ),
           );
         }
 
@@ -371,9 +518,7 @@ export default function Page() {
           }
 
           const newItems = data.history?.items ?? [];
-          const existingIds = new Set(
-            currentItems.map((item) => item.id)
-          );
+          const existingIds = new Set(currentItems.map((item) => item.id));
 
           return [
             ...currentItems,
@@ -386,22 +531,28 @@ export default function Page() {
         setHistoryError(
           historyLoadError instanceof Error
             ? historyLoadError.message
-            : "Failed to load generation history."
+            : ui(
+                locale,
+                "Не удалось загрузить историю генераций.",
+                "Failed to load generation history.",
+              ),
         );
       } finally {
         setHistoryLoading(false);
         setHistoryLoadingMore(false);
       }
     },
-    [isSignedIn]
+    [isSignedIn, locale],
   );
 
   useEffect(() => {
-    void loadProfile();
+    const timeout = window.setTimeout(() => void loadProfile(), 0);
+    return () => window.clearTimeout(timeout);
   }, [loadProfile]);
 
   useEffect(() => {
-    void loadHistory();
+    const timeout = window.setTimeout(() => void loadHistory(), 0);
+    return () => window.clearTimeout(timeout);
   }, [loadHistory]);
 
   useEffect(() => {
@@ -424,10 +575,7 @@ export default function Page() {
     };
   }, [selectedHistoryItem]);
 
-  const downloadImageFromUrl = async (
-    imageUrl: string,
-    fileName: string
-  ) => {
+  const downloadImageFromUrl = async (imageUrl: string, fileName: string) => {
     const response = await fetch(imageUrl, {
       method: "GET",
       cache: "no-store",
@@ -435,7 +583,11 @@ export default function Page() {
 
     if (!response.ok) {
       throw new Error(
-        "The download link has expired. Refresh the history and try again."
+        ui(
+          locale,
+          "Ссылка на скачивание устарела. Обновите историю и попробуйте ещё раз.",
+          "The download link has expired. Refresh history and try again.",
+        ),
       );
     }
 
@@ -465,26 +617,25 @@ export default function Page() {
       setDownloading(true);
       setError("");
 
-      await downloadImageFromUrl(
-        image,
-        createDownloadFileName()
-      );
+      await downloadImageFromUrl(image, createDownloadFileName());
     } catch (downloadError) {
       console.error("IMAGE DOWNLOAD ERROR:", downloadError);
 
       setError(
         downloadError instanceof Error
           ? downloadError.message
-          : "Image download failed."
+          : ui(
+              locale,
+              "Не удалось скачать изображение.",
+              "Image download failed.",
+            ),
       );
     } finally {
       setDownloading(false);
     }
   };
 
-  const handleHistoryDownload = async (
-    item: GenerationHistoryItem
-  ) => {
+  const handleHistoryDownload = async (item: GenerationHistoryItem) => {
     if (downloading) {
       return;
     }
@@ -495,7 +646,7 @@ export default function Page() {
 
       await downloadImageFromUrl(
         item.imageUrl,
-        createDownloadFileName(`ssswear-ai-${item.mode}`)
+        createDownloadFileName(`ssswear-ai-${item.mode}`),
       );
     } catch (downloadError) {
       console.error("HISTORY IMAGE DOWNLOAD ERROR:", downloadError);
@@ -503,16 +654,18 @@ export default function Page() {
       setHistoryError(
         downloadError instanceof Error
           ? downloadError.message
-          : "Image download failed."
+          : ui(
+              locale,
+              "Не удалось скачать изображение.",
+              "Image download failed.",
+            ),
       );
     } finally {
       setDownloading(false);
     }
   };
 
-  const handleUseHistorySettings = (
-    item: GenerationHistoryItem
-  ) => {
+  const handleUseHistorySettings = (item: GenerationHistoryItem) => {
     setMode(item.mode);
     setAspectRatio(item.aspectRatio);
     setUserPrompt(item.userPrompt);
@@ -530,24 +683,46 @@ export default function Page() {
 
   const handleGenerate = async () => {
     if (!isSignedIn) {
-      setError("Please sign in to generate images.");
+      setError(
+        ui(
+          locale,
+          "Войдите в аккаунт, чтобы начать генерацию.",
+          "Sign in to generate images.",
+        ),
+      );
       return;
     }
 
     if (credits === null) {
-      setError("Credits are still loading. Please try again.");
+      setError(
+        ui(
+          locale,
+          "Баланс ещё загружается. Попробуйте ещё раз.",
+          "Your balance is still loading. Please try again.",
+        ),
+      );
       return;
     }
 
     if (credits < generationCost) {
       setError(
-        `Not enough Credits. This generation requires ${generationCost} Credits.`
+        ui(
+          locale,
+          `Недостаточно кредитов. Для этой генерации требуется ${generationCost}.`,
+          `Not enough credits. This generation requires ${generationCost}.`,
+        ),
       );
       return;
     }
 
     if (!frontFile) {
-      setError("Upload FRONT photo first.");
+      setError(
+        ui(
+          locale,
+          "Сначала загрузите фотографию изделия спереди.",
+          "Upload the front photo first.",
+        ),
+      );
       return;
     }
 
@@ -590,14 +765,19 @@ export default function Page() {
       if (!response.ok || !data.success || !data.image) {
         if (data.code === "INSUFFICIENT_CREDITS") {
           setError(
-            `Not enough Credits. Required: ${
-              data.requiredCredits ?? generationCost
-            }.`
+            ui(
+              locale,
+              `Недостаточно кредитов. Требуется: ${data.requiredCredits ?? generationCost}.`,
+              `Not enough credits. Required: ${data.requiredCredits ?? generationCost}.`,
+            ),
           );
           return;
         }
 
-        setError(data.error || "Generation failed.");
+        setError(
+          data.error ||
+            ui(locale, "Не удалось выполнить генерацию.", "Generation failed."),
+        );
         return;
       }
 
@@ -614,7 +794,11 @@ export default function Page() {
       setError(
         generationError instanceof Error
           ? generationError.message
-          : "API request failed."
+          : ui(
+              locale,
+              "Не удалось связаться с сервисом генерации.",
+              "Could not reach the generation service.",
+            ),
       );
     } finally {
       setLoading(false);
@@ -634,255 +818,727 @@ export default function Page() {
 
   if (!isLoaded) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f7f5f0] text-[#111111]">
-        <p className="text-sm text-black/50">Loading...</p>
+      <main className="flex min-h-screen items-center justify-center bg-[#090909] text-white">
+        <div className="text-center">
+          <div className="flex justify-center">
+            <BrandMark size="large" />
+          </div>
+          <p className="mt-6 text-xs uppercase tracking-[0.24em] text-white/35">
+            {ui(locale, "Загружаем студию", "Loading studio")}
+          </p>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f5f0] text-[#111111]">
-      <header className="sticky top-0 z-30 border-b border-black/10 bg-[#f7f5f0]/90 backdrop-blur">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-5">
-          <button
-            type="button"
-            onClick={() => setActiveView("studio")}
-            className="text-left"
-          >
-            <div className="text-sm font-semibold tracking-[0.22em]">
-              SSSWEAR AI
-            </div>
+    <LocaleContext.Provider value={locale}>
+      <main className="min-h-screen bg-[#f4f3ef] text-[#111111]">
+        <header className="sticky top-0 z-40 border-b border-black/8 bg-[#f4f3ef]/92 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveView("studio");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="flex min-w-0 items-center gap-3 text-left"
+              aria-label="SSSWEAR AI"
+            >
+              <BrandMark size="small" />
+              <div className="min-w-0">
+                <div className="truncate text-sm font-bold tracking-[0.16em]">
+                  SSSWEAR AI
+                </div>
+                <div className="mt-0.5 hidden truncate text-[10px] uppercase tracking-[0.18em] text-black/38 sm:block">
+                  {ui(locale, "AI-фотография одежды", "AI fashion photography")}
+                </div>
+              </div>
+            </button>
 
-            <div className="mt-1 hidden text-xs text-black/50 sm:block">
-              Professional fashion photography from your garment
+            {isSignedIn ? (
+              <nav className="hidden items-center gap-7 text-sm text-black/50 lg:flex">
+                <NavigationButton
+                  active={activeView === "studio"}
+                  onClick={() => setActiveView("studio")}
+                >
+                  {ui(locale, "Создать", "Create")}
+                </NavigationButton>
+                <NavigationButton
+                  active={activeView === "history"}
+                  onClick={() => setActiveView("history")}
+                >
+                  {ui(locale, "История", "History")}
+                </NavigationButton>
+                <NavigationButton
+                  active={activeView === "credits"}
+                  onClick={() => setActiveView("credits")}
+                >
+                  {ui(locale, "Баланс", "Credits")}
+                </NavigationButton>
+                <NavigationButton
+                  active={activeView === "account"}
+                  onClick={() => setActiveView("account")}
+                >
+                  {ui(locale, "Профиль", "Account")}
+                </NavigationButton>
+              </nav>
+            ) : (
+              <nav className="hidden items-center gap-7 text-sm text-black/50 lg:flex">
+                <a className="transition hover:text-black" href="#audience">
+                  {ui(locale, "Для кого", "For whom")}
+                </a>
+                <a className="transition hover:text-black" href="#how-it-works">
+                  {ui(locale, "Как работает", "How it works")}
+                </a>
+                <a className="transition hover:text-black" href="#pricing">
+                  {ui(locale, "Тарифы", "Pricing")}
+                </a>
+              </nav>
+            )}
+
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+              <LocaleSwitcher locale={locale} onChange={changeLocale} />
+
+              {isSignedIn ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setWelcomeOpen(true)}
+                    className="hidden h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-sm font-semibold transition hover:border-black/25 sm:flex"
+                    aria-label={ui(locale, "Как пользоваться", "How to use")}
+                    title={ui(locale, "Как пользоваться", "How to use")}
+                  >
+                    ?
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveView("credits")}
+                    className="hidden rounded-full border border-black/10 bg-white px-4 py-2.5 text-sm font-medium transition hover:border-black/25 sm:block"
+                  >
+                    {creditsLoading
+                      ? ui(locale, "Загрузка", "Loading")
+                      : `${formatCredits(credits ?? 0, locale)} ${ui(locale, "кредитов", "credits")}`}
+                  </button>
+                  <UserButton />
+                </>
+              ) : (
+                <SignInButton mode="modal">
+                  <button
+                    type="button"
+                    className="rounded-full bg-black px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black/80 sm:px-5"
+                  >
+                    {ui(locale, "Войти", "Sign in")}
+                  </button>
+                </SignInButton>
+              )}
             </div>
-          </button>
+          </div>
 
           {isSignedIn && (
-            <nav className="hidden items-center gap-8 text-sm text-black/55 md:flex">
-              <NavigationButton
-                active={activeView === "studio"}
-                onClick={() => setActiveView("studio")}
-              >
-                Studio
-              </NavigationButton>
-
-              <NavigationButton
-                active={activeView === "history"}
-                onClick={() => setActiveView("history")}
-              >
-                History
-              </NavigationButton>
-
-              <NavigationButton
-                active={activeView === "credits"}
-                onClick={() => setActiveView("credits")}
-              >
-                Credits
-              </NavigationButton>
-
-              <NavigationButton
-                active={activeView === "account"}
-                onClick={() => setActiveView("account")}
-              >
-                Account
-              </NavigationButton>
-            </nav>
-          )}
-
-          <div className="flex items-center gap-3">
-            {isSignedIn ? (
-              <>
+            <div className="border-t border-black/5 px-4 py-2.5 lg:hidden">
+              <div className="mx-auto flex max-w-[1500px] gap-2 overflow-x-auto">
+                <MobileNavigationButton
+                  active={activeView === "studio"}
+                  onClick={() => setActiveView("studio")}
+                >
+                  {ui(locale, "Создать", "Create")}
+                </MobileNavigationButton>
+                <MobileNavigationButton
+                  active={activeView === "history"}
+                  onClick={() => setActiveView("history")}
+                >
+                  {ui(locale, "История", "History")}
+                </MobileNavigationButton>
+                <MobileNavigationButton
+                  active={activeView === "credits"}
+                  onClick={() => setActiveView("credits")}
+                >
+                  {ui(locale, "Баланс", "Credits")}
+                </MobileNavigationButton>
+                <MobileNavigationButton
+                  active={activeView === "account"}
+                  onClick={() => setActiveView("account")}
+                >
+                  {ui(locale, "Профиль", "Account")}
+                </MobileNavigationButton>
                 <button
                   type="button"
-                  onClick={() => setActiveView("credits")}
-                  className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm transition hover:border-black/25"
+                  onClick={() => setWelcomeOpen(true)}
+                  className="shrink-0 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium text-black/60"
                 >
-                  {creditsLoading
-                    ? "Loading Credits"
-                    : `${formatCredits(credits ?? 0)} Credits`}
+                  {ui(locale, "Помощь", "Help")}
                 </button>
+              </div>
+            </div>
+          )}
+        </header>
 
-                <UserButton />
-              </>
-            ) : (
+        {!isSignedIn ? (
+          <MarketingLanding locale={locale} />
+        ) : (
+          <>
+            {activeView === "studio" && (
+              <StudioView
+                credits={credits}
+                creditsLoading={creditsLoading}
+                frontFile={frontFile}
+                backFile={backFile}
+                detailFiles={detailFiles}
+                mode={mode}
+                aspectRatio={aspectRatio}
+                userPrompt={userPrompt}
+                image={image}
+                imagePath={imagePath}
+                error={error}
+                loading={loading}
+                downloading={downloading}
+                generationCost={generationCost}
+                hasEnoughCredits={hasEnoughCredits}
+                uploadedCount={uploadedCount}
+                onFrontFileChange={setFrontFile}
+                onBackFileChange={setBackFile}
+                onDetailFilesChange={setDetailFiles}
+                onModeChange={(nextMode) => {
+                  setMode(nextMode);
+                  setError("");
+                }}
+                onAspectRatioChange={setAspectRatio}
+                onPromptChange={setUserPrompt}
+                onGenerate={handleGenerate}
+                onDownload={handleDownload}
+                onOpenCredits={() => setActiveView("credits")}
+              />
+            )}
+
+            {activeView === "history" && (
+              <HistoryView
+                items={historyItems}
+                total={historyTotal}
+                totalGenerations={totalGenerations}
+                totalCreditsSpent={totalCreditsSpent}
+                loading={historyLoading}
+                loadingMore={historyLoadingMore}
+                hasMore={historyHasMore}
+                error={historyError}
+                onRefresh={() =>
+                  void loadHistory({ page: 1, append: false })
+                }
+                onLoadMore={() => void handleLoadMoreHistory()}
+                onOpenItem={setSelectedHistoryItem}
+                onOpenStudio={() => setActiveView("studio")}
+              />
+            )}
+
+            {activeView === "credits" && (
+              <CreditsView
+                balance={credits ?? 0}
+                totalCreditsSpent={totalCreditsSpent}
+                transactions={transactions}
+                loading={historyLoading}
+                error={historyError}
+                onRefresh={() =>
+                  void loadHistory({ page: 1, append: false })
+                }
+              />
+            )}
+
+            {activeView === "account" && (
+              <AccountView
+                email={user?.primaryEmailAddress?.emailAddress ?? ""}
+                name={user?.fullName ?? user?.firstName ?? ""}
+                balance={credits ?? 0}
+                totalGenerations={totalGenerations}
+                totalCreditsSpent={totalCreditsSpent}
+              />
+            )}
+          </>
+        )}
+
+        <AppFooter locale={locale} signedIn={Boolean(isSignedIn)} />
+
+        {welcomeOpen && isSignedIn && (
+          <WelcomeScreen locale={locale} onClose={closeWelcome} />
+        )}
+
+        {selectedHistoryItem && (
+          <HistoryModal
+            item={selectedHistoryItem}
+            downloading={downloading}
+            onClose={() => setSelectedHistoryItem(null)}
+            onDownload={() => void handleHistoryDownload(selectedHistoryItem)}
+            onUseSettings={() => handleUseHistorySettings(selectedHistoryItem)}
+          />
+        )}
+      </main>
+    </LocaleContext.Provider>
+  );
+}
+
+function BrandMark({ size = "small" }: { size?: "small" | "large" }) {
+  return (
+    <div
+      className={[
+        "relative shrink-0 overflow-hidden rounded-[28%] bg-black",
+        size === "large" ? "h-24 w-24 brand-breathe" : "h-10 w-10",
+      ].join(" ")}
+    >
+      <img
+        src="/brand-mark.jpg"
+        alt=""
+        className="h-full w-full object-cover"
+        aria-hidden="true"
+      />
+    </div>
+  );
+}
+
+function LocaleSwitcher({
+  locale,
+  onChange,
+}: {
+  locale: Locale;
+  onChange: (locale: Locale) => void;
+}) {
+  return (
+    <div className="flex rounded-full border border-black/10 bg-white p-1 text-[10px] font-bold">
+      {(["ru", "en"] as Locale[]).map((item) => (
+        <button
+          key={item}
+          type="button"
+          onClick={() => onChange(item)}
+          className={[
+            "rounded-full px-2.5 py-1.5 transition sm:px-3",
+            locale === item
+              ? "bg-black text-white"
+              : "text-black/40 hover:text-black",
+          ].join(" ")}
+          aria-pressed={locale === item}
+        >
+          {item === "ru" ? "РУ" : "EN"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MarketingLanding({ locale }: { locale: Locale }) {
+  const promptIdeas = [
+    {
+      ru: "Девушка идёт по вечерней Москве, дождь, неон",
+      en: "A woman walking through evening Moscow, rain and neon",
+    },
+    {
+      ru: "Кофейня в Санкт-Петербурге, мягкий утренний свет",
+      en: "A Saint Petersburg coffee shop in soft morning light",
+    },
+    {
+      ru: "Мужчина на фоне стены во дворе, мобильная съёмка",
+      en: "A man by a courtyard wall, casual mobile photo",
+    },
+    {
+      ru: "Карточка товара на белой циклораме",
+      en: "Product card on a clean white cyclorama",
+    },
+  ];
+
+  const plans = [
+    { name: "START", price: "790 ₽", credits: "400", photos: "≈ 10" },
+    { name: "PRO", price: "1 990 ₽", credits: "1 100", photos: "≈ 20" },
+    { name: "STUDIO", price: "3 990 ₽", credits: "2 500", photos: "≈ 50" },
+    { name: "BUSINESS", price: "7 990 ₽", credits: "5 000", photos: "≈ 100" },
+  ];
+
+  return (
+    <div className="overflow-hidden">
+      <section className="relative border-b border-black/8">
+        <div className="landing-grid pointer-events-none absolute inset-0 opacity-50" />
+        <div className="relative mx-auto grid min-h-[760px] max-w-[1500px] items-center gap-12 px-5 py-20 sm:px-8 lg:grid-cols-[1.04fr_0.96fr] lg:px-12 lg:py-24">
+          <div className="max-w-[760px]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-black/50">
+              <span className="h-1.5 w-1.5 rounded-full bg-black" />
+              {ui(locale, "AI-фотостудия для одежды", "AI photo studio for fashion")}
+            </div>
+            <h1 className="mt-7 max-w-[780px] text-[clamp(3.4rem,7vw,7.4rem)] font-semibold leading-[0.88] tracking-[-0.075em]">
+              {ui(
+                locale,
+                "Профессиональные фотографии одежды без фотостудии",
+                "Professional fashion photos without a photo studio",
+              )}
+            </h1>
+            <p className="mt-8 max-w-2xl text-lg leading-8 text-black/55 sm:text-xl">
+              {ui(
+                locale,
+                "От каталожных снимков до имиджевых кампаний — за минуты, без моделей, фотографов и студии.",
+                "From product cards to campaign imagery — in minutes, without models, photographers, or a studio.",
+              )}
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <SignInButton mode="modal">
                 <button
                   type="button"
-                  className="rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white"
+                  className="rounded-full bg-black px-7 py-4 text-sm font-semibold text-white transition hover:scale-[1.01] hover:bg-black/82"
                 >
-                  Sign in
+                  {ui(locale, "Создать первую съёмку", "Create your first shoot")}
                 </button>
               </SignInButton>
-            )}
+              <a
+                href="#how-it-works"
+                className="rounded-full border border-black/12 bg-white px-7 py-4 text-center text-sm font-semibold transition hover:border-black/30"
+              >
+                {ui(locale, "Посмотреть, как работает", "See how it works")}
+              </a>
+            </div>
+            <p className="mt-4 text-xs text-black/38">
+              {ui(
+                locale,
+                "🎁 3 бесплатные генерации после регистрации",
+                "🎁 3 free generations after registration",
+              )}
+            </p>
+          </div>
+
+          <div className="relative mx-auto w-full max-w-[660px] lg:ml-auto">
+            <div className="absolute -inset-8 rounded-full bg-white/70 blur-3xl" />
+            <div className="relative overflow-hidden rounded-[34px] border border-black/10 bg-white p-3 shadow-[0_45px_120px_rgba(0,0,0,0.16)] sm:p-5">
+              <div className="flex items-center justify-between border-b border-black/8 px-2 pb-4">
+                <div>
+                  <div className="text-xs font-bold uppercase tracking-[0.16em]">SSSWEAR AI</div>
+                  <div className="mt-1 text-[10px] text-black/38">
+                    {ui(locale, "Новая генерация", "New generation")}
+                  </div>
+                </div>
+                <div className="rounded-full bg-black px-3 py-1.5 text-[10px] font-semibold text-white">
+                  130 Credits
+                </div>
+              </div>
+              <div className="grid gap-3 pt-4 sm:grid-cols-[0.82fr_1.18fr]">
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-black/8 bg-[#f7f6f2] p-4">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-black/45">
+                      1. {ui(locale, "Загрузите изделие", "Upload garment")}
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {["FRONT", "BACK"].map((label) => (
+                        <div key={label} className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-black/15 bg-white">
+                          <div className="text-center">
+                            <div className="text-2xl">＋</div>
+                            <div className="mt-1 text-[9px] font-semibold text-black/38">{label}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-black/8 p-4">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-black/45">
+                      2. {ui(locale, "Тип съёмки", "Photo type")}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {["Product", "Campaign", "Mobile"].map((label, index) => (
+                        <span key={label} className={index === 1 ? "rounded-full bg-black px-2.5 py-1.5 text-[9px] text-white" : "rounded-full bg-[#f2f1ed] px-2.5 py-1.5 text-[9px] text-black/55"}>
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-black px-4 py-3 text-center text-[11px] font-semibold text-white">
+                    ✦ {ui(locale, "Создать изображение", "Create image")}
+                  </div>
+                </div>
+                <div className="flex min-h-[420px] flex-col overflow-hidden rounded-2xl bg-[#101010] p-4 text-white">
+                  <div className="flex items-center justify-between text-[10px] text-white/45">
+                    <span>{ui(locale, "Результат", "Result")}</span>
+                    <span>4:5</span>
+                  </div>
+                  <div className="relative mt-4 flex flex-1 items-center justify-center overflow-hidden rounded-xl bg-[radial-gradient(circle_at_50%_35%,#3d3d3d_0,#171717_42%,#0d0d0d_80%)]">
+                    <div className="absolute h-[62%] w-[54%] rounded-[38%_38%_18%_18%] border border-white/18 bg-[#080808] shadow-[0_25px_60px_rgba(0,0,0,0.65)]">
+                      <div className="absolute left-1/2 top-[8%] h-[20%] w-[42%] -translate-x-1/2 rounded-t-full border border-white/12" />
+                      <div className="absolute left-1/2 top-[38%] -translate-x-1/2 text-[8px] font-semibold tracking-[0.18em] text-white/65">
+                        SSSWEAR
+                      </div>
+                    </div>
+                    <div className="absolute bottom-[14%] h-5 w-[58%] rounded-full bg-black/70 blur-md" />
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <span className="rounded-full bg-white px-3 py-2 text-[10px] font-semibold text-black">
+                      ↓ PNG
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        {isSignedIn && (
-          <div className="border-t border-black/5 px-6 py-3 md:hidden">
-            <div className="mx-auto flex max-w-[1440px] gap-2 overflow-x-auto">
-              <MobileNavigationButton
-                active={activeView === "studio"}
-                onClick={() => setActiveView("studio")}
-              >
-                Studio
-              </MobileNavigationButton>
-
-              <MobileNavigationButton
-                active={activeView === "history"}
-                onClick={() => setActiveView("history")}
-              >
-                History
-              </MobileNavigationButton>
-
-              <MobileNavigationButton
-                active={activeView === "credits"}
-                onClick={() => setActiveView("credits")}
-              >
-                Credits
-              </MobileNavigationButton>
-
-              <MobileNavigationButton
-                active={activeView === "account"}
-                onClick={() => setActiveView("account")}
-              >
-                Account
-              </MobileNavigationButton>
-            </div>
-          </div>
-        )}
-      </header>
-
-      {!isSignedIn ? (
-        <section className="mx-auto flex min-h-[calc(100vh-90px)] max-w-[980px] items-center justify-center px-6 py-20">
-          <div className="rounded-[36px] border border-black/10 bg-white p-10 text-center shadow-[0_30px_90px_rgba(0,0,0,0.08)]">
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-black text-3xl text-white">
-              ✦
-            </div>
-
-            <h1 className="text-5xl font-semibold tracking-[-0.06em]">
-              Create fashion photos from your garment.
-            </h1>
-
-            <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-black/55">
-              Upload front, back and detail photos of your product.
-              Generate premium AI fashion photography for campaigns,
-              marketplaces and social media.
-            </p>
-
-            <SignInButton mode="modal">
-              <button
-                type="button"
-                className="mt-8 rounded-2xl bg-black px-7 py-4 text-sm font-semibold text-white transition hover:bg-black/85"
-              >
-                Sign in to start
-              </button>
-            </SignInButton>
-
-            <p className="mt-4 text-xs text-black/40">
-              Email-only access. No Google login.
-            </p>
-          </div>
-        </section>
-      ) : (
-        <>
-          {activeView === "studio" && (
-            <StudioView
-              credits={credits}
-              creditsLoading={creditsLoading}
-              frontFile={frontFile}
-              backFile={backFile}
-              detailFiles={detailFiles}
-              mode={mode}
-              aspectRatio={aspectRatio}
-              userPrompt={userPrompt}
-              image={image}
-              imagePath={imagePath}
-              error={error}
-              loading={loading}
-              downloading={downloading}
-              generationCost={generationCost}
-              hasEnoughCredits={hasEnoughCredits}
-              uploadedCount={uploadedCount}
-              onFrontFileChange={setFrontFile}
-              onBackFileChange={setBackFile}
-              onDetailFilesChange={setDetailFiles}
-              onModeChange={(nextMode) => {
-                setMode(nextMode);
-                setError("");
-              }}
-              onAspectRatioChange={setAspectRatio}
-              onPromptChange={setUserPrompt}
-              onGenerate={handleGenerate}
-              onDownload={handleDownload}
-              onOpenCredits={() => setActiveView("credits")}
-            />
-          )}
-
-          {activeView === "history" && (
-            <HistoryView
-              items={historyItems}
-              total={historyTotal}
-              totalGenerations={totalGenerations}
-              totalCreditsSpent={totalCreditsSpent}
-              loading={historyLoading}
-              loadingMore={historyLoadingMore}
-              hasMore={historyHasMore}
-              error={historyError}
-              onRefresh={() =>
-                void loadHistory({
-                  page: 1,
-                  append: false,
-                })
-              }
-              onLoadMore={() => void handleLoadMoreHistory()}
-              onOpenItem={setSelectedHistoryItem}
-              onOpenStudio={() => setActiveView("studio")}
-            />
-          )}
-
-          {activeView === "credits" && (
-            <CreditsView
-              balance={credits ?? 0}
-              totalCreditsSpent={totalCreditsSpent}
-              transactions={transactions}
-              loading={historyLoading}
-              error={historyError}
-              onRefresh={() =>
-                void loadHistory({
-                  page: 1,
-                  append: false,
-                })
-              }
-            />
-          )}
-
-          {activeView === "account" && (
-            <AccountView
-              email={user?.primaryEmailAddress?.emailAddress ?? ""}
-              name={user?.fullName ?? user?.firstName ?? ""}
-              balance={credits ?? 0}
-              totalGenerations={totalGenerations}
-              totalCreditsSpent={totalCreditsSpent}
-            />
-          )}
-        </>
-      )}
-
-      {selectedHistoryItem && (
-        <HistoryModal
-          item={selectedHistoryItem}
-          downloading={downloading}
-          onClose={() => setSelectedHistoryItem(null)}
-          onDownload={() =>
-            void handleHistoryDownload(selectedHistoryItem)
-          }
-          onUseSettings={() =>
-            handleUseHistorySettings(selectedHistoryItem)
-          }
+      <section id="audience" className="mx-auto max-w-[1500px] px-5 py-24 sm:px-8 lg:px-12">
+        <LandingHeading
+          eyebrow={ui(locale, "Кому подойдёт", "Built for")}
+          title={ui(locale, "Один инструмент — разные задачи бренда", "One tool for every fashion content task")}
         />
-      )}
-    </main>
+        <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ["01", ui(locale, "Интернет-магазины", "Online stores"), ui(locale, "Карточки товара и каталожные изображения без регулярных пересъёмок.", "Product cards and catalog imagery without recurring shoots.")],
+            ["02", ui(locale, "Бренды одежды", "Fashion brands"), ui(locale, "Имиджевые кампании, лукбуки и тестирование визуальных концепций.", "Campaigns, lookbooks, and fast visual concept testing.")],
+            ["03", ui(locale, "Социальные сети", "Social media"), ui(locale, "Живой lifestyle-контент для Reels, постов и рекламных креативов.", "Natural lifestyle content for reels, posts, and ads.")],
+            ["04", ui(locale, "Производители мерча", "Merch producers"), ui(locale, "Презентация изделий клиенту ещё до полноценной фотосессии.", "Present finished-looking products before a full photo shoot.")],
+          ].map(([number, title, description]) => (
+            <div key={number} className="group min-h-[270px] rounded-[28px] border border-black/9 bg-white p-6 transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(0,0,0,0.08)]">
+              <div className="text-xs font-bold tracking-[0.18em] text-black/25">{number}</div>
+              <h3 className="mt-16 text-2xl font-semibold tracking-[-0.04em]">{title}</h3>
+              <p className="mt-4 text-sm leading-6 text-black/48">{description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="how-it-works" className="border-y border-white/10 bg-[#0b0b0b] text-white">
+        <div className="mx-auto max-w-[1500px] px-5 py-24 sm:px-8 lg:px-12">
+          <LandingHeading
+            eyebrow={ui(locale, "Как это работает", "How it works")}
+            title={ui(locale, "От фотографии вещи до готового кадра", "From a garment photo to a finished image")}
+            dark
+          />
+          <div className="mt-14 grid gap-px overflow-hidden rounded-[30px] border border-white/10 bg-white/10 lg:grid-cols-3">
+            {[
+              ["01", ui(locale, "Загрузите изделие", "Upload the garment"), ui(locale, "Добавьте вид спереди, сзади и фотографии важных деталей.", "Add front, back, and close-up detail photos.")],
+              ["02", ui(locale, "Опишите съёмку", "Describe the shoot"), ui(locale, "Выберите формат и укажите локацию, модель, свет или настроение.", "Choose the format and specify the model, location, light, or mood.")],
+              ["03", ui(locale, "Получите результат", "Get the result"), ui(locale, "Скачайте готовое изображение и используйте его в коммуникации бренда.", "Download the image and use it across your brand communication.")],
+            ].map(([number, title, description]) => (
+              <div key={number} className="min-h-[330px] bg-[#0b0b0b] p-7 sm:p-9">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-xs text-white/45">{number}</div>
+                <h3 className="mt-24 text-3xl font-semibold tracking-[-0.045em]">{title}</h3>
+                <p className="mt-4 max-w-sm text-sm leading-6 text-white/45">{description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto grid max-w-[1500px] gap-4 px-5 py-24 sm:px-8 lg:grid-cols-2 lg:px-12">
+        <div className="rounded-[32px] bg-[#deddd6] p-7 sm:p-10">
+          <div className="text-xs font-bold uppercase tracking-[0.18em] text-black/38">
+            {ui(locale, "Как получить лучший результат", "Get the best result")}
+          </div>
+          <h2 className="mt-6 max-w-lg text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">
+            {ui(locale, "Хороший исходник сохраняет характер изделия", "A strong source photo preserves the garment")}
+          </h2>
+          <div className="mt-12 space-y-4">
+            {generationTips.slice(0, 4).map((tip, index) => (
+              <div key={tip.ru} className="flex gap-4 border-t border-black/10 pt-4">
+                <span className="text-xs font-bold text-black/30">0{index + 1}</span>
+                <p className="text-sm leading-6 text-black/58">{tip[locale]}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-[32px] bg-white p-7 sm:p-10">
+          <div className="text-xs font-bold uppercase tracking-[0.18em] text-black/38">
+            {ui(locale, "Готовые идеи", "Ready-made ideas")}
+          </div>
+          <h2 className="mt-6 max-w-lg text-4xl font-semibold tracking-[-0.055em] sm:text-5xl">
+            {ui(locale, "Не нужно начинать с пустого поля", "Never start from a blank field")}
+          </h2>
+          <div className="mt-12 flex flex-wrap gap-2.5">
+            {promptIdeas.map((idea) => (
+              <SignInButton key={idea.ru} mode="modal">
+                <button type="button" className="rounded-full border border-black/10 bg-[#f6f5f1] px-4 py-3 text-left text-sm leading-5 text-black/58 transition hover:border-black/30 hover:text-black">
+                  {idea[locale]}
+                </button>
+              </SignInButton>
+            ))}
+          </div>
+          <p className="mt-7 text-xs leading-5 text-black/35">
+            {ui(locale, "Нажмите на идею, зарегистрируйтесь и адаптируйте её под своё изделие.", "Choose an idea, sign in, and adapt it to your garment.")}
+          </p>
+        </div>
+      </section>
+
+      <section className="border-y border-black/8 bg-white">
+        <div className="mx-auto max-w-[1500px] px-5 py-24 sm:px-8 lg:px-12">
+          <LandingHeading
+            eyebrow={ui(locale, "Почему SSSWEAR AI", "Why SSSWEAR AI")}
+            title={ui(locale, "Сделано вокруг реальных задач одежды", "Built around real fashion workflows")}
+          />
+          <div className="mt-14 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-5">
+            {[
+              ["< 1 min", ui(locale, "Генерация менее минуты", "Generation in under a minute")],
+              ["REAL", ui(locale, "Реалистичные фотографии", "Realistic fashion imagery")],
+              ["02", ui(locale, "Каталог и lifestyle", "Catalog and lifestyle")],
+              ["− COST", ui(locale, "Экономия на фотосессиях", "Lower photo production costs")],
+              ["PRIVATE", ui(locale, "Приватность изображений", "Private source images")],
+            ].map(([value, label]) => (
+              <div key={label} className="border-t border-black/10 pt-5">
+                <div className="text-sm font-bold tracking-[-0.02em]">{value}</div>
+                <div className="mt-8 text-sm leading-6 text-black/48">{label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" className="mx-auto max-w-[1500px] px-5 py-24 sm:px-8 lg:px-12">
+        <LandingHeading
+          eyebrow={ui(locale, "Тарифы", "Pricing")}
+          title={ui(locale, "Выберите объём под текущую задачу", "Choose the right volume for your work")}
+        />
+        <div className="mt-12 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {plans.map((plan, index) => (
+            <div key={plan.name} className={[
+              "flex min-h-[360px] flex-col rounded-[28px] border p-6",
+              index === 1 ? "border-black bg-black text-white" : "border-black/9 bg-white",
+            ].join(" ")}>
+              <div className={index === 1 ? "text-xs font-bold tracking-[0.18em] text-white/40" : "text-xs font-bold tracking-[0.18em] text-black/35"}>{plan.name}</div>
+              <div className="mt-8 text-4xl font-semibold tracking-[-0.055em]">{plan.price}</div>
+              <div className={index === 1 ? "mt-3 text-sm text-white/45" : "mt-3 text-sm text-black/45"}>{plan.credits} Credits</div>
+              <div className="mt-auto">
+                <div className={index === 1 ? "mb-5 border-t border-white/12 pt-5 text-sm text-white/55" : "mb-5 border-t border-black/10 pt-5 text-sm text-black/55"}>
+                  {plan.photos} {ui(locale, "фотографий", "photos")}
+                </div>
+                <SignInButton mode="modal">
+                  <button type="button" className={index === 1 ? "w-full rounded-full bg-white px-5 py-3.5 text-sm font-semibold text-black" : "w-full rounded-full bg-black px-5 py-3.5 text-sm font-semibold text-white"}>
+                    {ui(locale, "Начать", "Get started")}
+                  </button>
+                </SignInButton>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-[1500px] px-5 pb-24 sm:px-8 lg:px-12">
+        <div className="rounded-[36px] bg-[#111111] px-7 py-14 text-white sm:px-12 lg:flex lg:items-end lg:justify-between lg:gap-10">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">SSSWEAR AI</div>
+            <h2 className="mt-6 max-w-3xl text-5xl font-semibold leading-[0.94] tracking-[-0.065em] sm:text-6xl">
+              {ui(locale, "Первая съёмка начинается с одной фотографии", "Your first shoot starts with one photo")}
+            </h2>
+          </div>
+          <SignInButton mode="modal">
+            <button type="button" className="mt-9 shrink-0 rounded-full bg-white px-7 py-4 text-sm font-semibold text-black lg:mt-0">
+              {ui(locale, "Попробовать бесплатно", "Try it free")}
+            </button>
+          </SignInButton>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function LandingHeading({
+  eyebrow,
+  title,
+  dark = false,
+}: {
+  eyebrow: string;
+  title: string;
+  dark?: boolean;
+}) {
+  return (
+    <div className="max-w-4xl">
+      <div className={dark ? "text-xs font-bold uppercase tracking-[0.18em] text-white/38" : "text-xs font-bold uppercase tracking-[0.18em] text-black/38"}>
+        {eyebrow}
+      </div>
+      <h2 className="mt-6 text-4xl font-semibold leading-[0.96] tracking-[-0.06em] sm:text-6xl">
+        {title}
+      </h2>
+    </div>
+  );
+}
+
+function WelcomeScreen({
+  locale,
+  onClose,
+}: {
+  locale: Locale;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/72 p-4 backdrop-blur-xl">
+      <div className="relative w-full max-w-[720px] overflow-hidden rounded-[34px] bg-[#0b0b0b] p-7 text-white shadow-[0_40px_140px_rgba(0,0,0,0.55)] sm:p-10">
+        <div className="relative">
+          <BrandMark size="large" />
+          <div className="mt-9 text-xs font-bold uppercase tracking-[0.2em] text-white/35">
+            SSSWEAR AI
+          </div>
+          <h2 className="mt-5 text-4xl font-semibold leading-[0.96] tracking-[-0.06em] sm:text-6xl">
+            {ui(locale, "Добро пожаловать в AI-фотостудию", "Welcome to your AI photo studio")}
+          </h2>
+          <p className="mt-7 max-w-lg text-base leading-7 text-white/55">
+            {ui(
+              locale,
+              "Мы уже начислили вам 130 бесплатных кредитов — этого хватит примерно на 3 генерации, чтобы познакомиться с сервисом.",
+              "We have added 130 free credits — enough for about 3 generations to explore the service.",
+            )}
+          </p>
+          <div className="mt-8 grid gap-2 sm:grid-cols-3">
+            {[
+              {
+                title: ui(locale, "Загрузите вещь", "Upload garment"),
+                image: "/onboarding-upload.jpg",
+                alt: ui(locale, "Пример загруженной вещи", "Uploaded garment example"),
+              },
+              {
+                title: ui(locale, "Опишите съёмку", "Describe shoot"),
+                image: "/onboarding-prompt.jpg",
+                alt: ui(locale, "Пример описания съёмки", "Shoot description example"),
+              },
+              {
+                title: ui(locale, "Скачайте кадр", "Download image"),
+                image: "/onboarding-result.jpg",
+                alt: ui(locale, "Пример готового результата", "Generated result example"),
+              },
+            ].map((step, index) => (
+              <div
+                key={step.title}
+                className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-3"
+              >
+                <div className="px-1 pt-1 text-[10px] font-bold text-white/30">
+                  0{index + 1}
+                </div>
+                <div className="px-1 pt-3 text-sm font-medium">{step.title}</div>
+                <div className="mt-4 overflow-hidden rounded-xl bg-white">
+                  <img
+                    src={step.image}
+                    alt={step.alt}
+                    className="aspect-[8/5] h-auto w-full object-cover"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-8 w-full rounded-full bg-white px-7 py-4 text-sm font-semibold text-black transition hover:bg-white/85"
+          >
+            {ui(locale, "Начать", "Start creating")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AppFooter({
+  locale,
+  signedIn,
+}: {
+  locale: Locale;
+  signedIn: boolean;
+}) {
+  return (
+    <footer className={signedIn ? "mt-10 border-t border-black/8" : "border-t border-black/8"}>
+      <div className="mx-auto flex max-w-[1500px] flex-col gap-5 px-5 py-8 text-xs text-black/38 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
+        <div>© {new Date().getFullYear()} SSSWEAR AI</div>
+        <div className="flex flex-wrap gap-x-6 gap-y-2">
+          <span>{ui(locale, "Конфиденциальность", "Privacy")}</span>
+          <span>{ui(locale, "Условия", "Terms")}</span>
+          <span>{ui(locale, "Поддержка", "Support")}</span>
+        </div>
+        <div>{ui(locale, "Создано SSSWEAR Studio", "Made by SSSWEAR Studio")}</div>
+      </div>
+    </footer>
   );
 }
 
@@ -939,54 +1595,119 @@ function StudioView({
   onDownload: () => void;
   onOpenCredits: () => void;
 }) {
+  const locale = useLocale();
+  const [generationStep, setGenerationStep] = useState(0);
+
+  useEffect(() => {
+    if (!loading) {
+      return;
+    }
+
+    const resetTimeout = window.setTimeout(() => setGenerationStep(0), 0);
+    const interval = window.setInterval(() => {
+      setGenerationStep((currentStep) =>
+        Math.min(currentStep + 1, generationStatuses.length - 1),
+      );
+    }, 5500);
+
+    return () => {
+      window.clearTimeout(resetTimeout);
+      window.clearInterval(interval);
+    };
+  }, [loading]);
+
+  const generationStatus = generationStatuses[generationStep][locale];
+  const generationTip =
+    generationTips[generationStep % generationTips.length][locale];
+
+  const promptExamples: LocalizedText[] = [
+    {
+      ru: "Девушка идёт по вечерней Москве, дождь, неон, реалистичная мобильная съёмка",
+      en: "A woman walking through evening Moscow, rain, neon, realistic mobile photo",
+    },
+    {
+      ru: "Кофейня в Санкт-Петербурге, мягкий утренний свет, плёночная фотография",
+      en: "A Saint Petersburg coffee shop, soft morning light, film photography",
+    },
+    {
+      ru: "Мужчина на фоне стены во дворе, естественная поза, съёмка на iPhone",
+      en: "A man by a courtyard wall, natural pose, shot on iPhone",
+    },
+    {
+      ru: "Карточка товара на белой циклораме, мягкая тень, премиальный каталог",
+      en: "Product card on a white cyclorama, soft shadow, premium catalog",
+    },
+  ];
+
   return (
-    <section className="mx-auto grid max-w-[1440px] gap-6 px-6 py-6 lg:grid-cols-[520px_1fr]">
+    <>
+      <section className="mx-auto grid max-w-[1500px] gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[560px_1fr] lg:px-8">
       <aside className="space-y-5">
         <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
-          <div className="mb-5 flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-semibold tracking-[-0.04em]">
-                New generation
-              </h1>
-
-              <p className="mt-2 text-sm leading-6 text-black/55">
-                Upload garment photos, choose a shooting mode and
-                create one premium AI fashion image.
-              </p>
+          <div className="mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-xs font-bold uppercase tracking-[0.18em] text-black/35">
+                {ui(locale, "AI-фотостудия", "AI photo studio")}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="rounded-full border border-black/10 bg-[#f6f5f1] px-3 py-1.5 text-xs text-black/50">
+                  {uploadedCount} {ui(locale, "файлов", "files")}
+                </div>
+                <div className="rounded-full bg-black px-3 py-1.5 text-xs font-semibold text-white">
+                  {creditsLoading || credits === null
+                    ? ui(locale, "Баланс…", "Balance…")
+                    : `${formatCredits(credits, locale)} Credits`}
+                </div>
+              </div>
             </div>
-
-            <div className="rounded-full bg-black px-3 py-1 text-xs text-white">
-              {uploadedCount} files
-            </div>
+            <h1 className="mt-5 text-4xl font-semibold tracking-[-0.055em]">
+              {ui(locale, "Создайте новую съёмку", "Create a new shoot")}
+            </h1>
+            <p className="mt-3 max-w-md text-sm leading-6 text-black/52">
+              {ui(
+                locale,
+                "Загрузите фотографии изделия, выберите задачу и опишите желаемый кадр.",
+                "Upload garment photos, choose the task, and describe the image you want.",
+              )}
+            </p>
           </div>
 
           <div className="grid gap-3">
             <UploadCard
-              title="FRONT"
-              description="Main front view of the garment"
+              title={ui(locale, "СПЕРЕДИ", "FRONT")}
+              description={ui(
+                locale,
+                "Основной вид изделия спереди",
+                "Main front view of the garment",
+              )}
               file={frontFile}
               onChange={onFrontFileChange}
               required
             />
 
             <UploadCard
-              title="BACK"
-              description="Back view helps preserve construction"
+              title={ui(locale, "СЗАДИ", "BACK")}
+              description={ui(
+                locale,
+                "Вид сзади помогает сохранить конструкцию",
+                "The back view helps preserve construction",
+              )}
               file={backFile}
               onChange={onBackFileChange}
             />
 
-            <DetailsUpload
-              files={detailFiles}
-              onChange={onDetailFilesChange}
-            />
+            <DetailsUpload files={detailFiles} onChange={onDetailFilesChange} />
           </div>
         </div>
 
         <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
           <SectionTitle
-            title="Photo type"
-            subtitle="Choose the production context"
+            title={ui(locale, "Тип съёмки", "Shooting mode")}
+            subtitle={ui(
+              locale,
+              "Выберите подходящий сценарий",
+              "Choose the right scenario",
+            )}
           />
 
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -1007,18 +1728,16 @@ function StudioView({
                   ].join(" ")}
                 >
                   <div className="text-sm font-semibold">
-                    {item.title}
+                    {item.title[locale]}
                   </div>
 
                   <div
                     className={[
                       "mt-1 text-xs leading-5",
-                      selected
-                        ? "text-white/65"
-                        : "text-black/45",
+                      selected ? "text-white/65" : "text-black/45",
                     ].join(" ")}
                   >
-                    {item.description}
+                    {item.description[locale]}
                   </div>
 
                   <div
@@ -1027,7 +1746,7 @@ function StudioView({
                       selected ? "text-white" : "text-black",
                     ].join(" ")}
                   >
-                    {itemCost} Credits
+                    {itemCost} {ui(locale, "кредитов", "credits")}
                   </div>
                 </button>
               );
@@ -1037,8 +1756,12 @@ function StudioView({
 
         <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
           <SectionTitle
-            title="Format"
-            subtitle="Final image aspect ratio"
+            title={ui(locale, "Формат", "Format")}
+            subtitle={ui(
+              locale,
+              "Соотношение сторон готового изображения",
+              "Aspect ratio of the final image",
+            )}
           />
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -1062,62 +1785,104 @@ function StudioView({
 
         <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
           <SectionTitle
-            title="Additional instructions"
-            subtitle="Optional creative direction"
+            title={ui(
+              locale,
+              "Опишите желаемую съёмку",
+              "Describe the desired shoot",
+            )}
+            subtitle={ui(
+              locale,
+              "Опишите сцену, образ, свет или настроение",
+              "Describe the scene, look, lighting, or mood",
+            )}
           />
 
           <textarea
             value={userPrompt}
-            onChange={(event) =>
-              onPromptChange(event.target.value)
-            }
-            placeholder="Example: natural daylight, summer mood, realistic skin texture, street location, shot on iPhone"
+            onChange={(event) => onPromptChange(event.target.value)}
+            placeholder={ui(
+              locale,
+              "Например: естественный дневной свет, летнее настроение, реалистичная кожа, улица Москвы, съёмка на iPhone",
+              "For example: natural daylight, summer mood, realistic skin, city street, shot on iPhone",
+            )}
             rows={5}
+            maxLength={1000}
             className="mt-4 w-full resize-none rounded-2xl border border-black/10 bg-[#fbfaf7] p-4 text-sm leading-6 outline-none transition placeholder:text-black/35 focus:border-black/30"
           />
+
+          <div className="mt-3 flex items-center justify-between text-[11px] text-black/30">
+            <span>{ui(locale, "Готовые идеи", "Ready-made ideas")}</span>
+            <span>{userPrompt.length}/1000</span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {promptExamples.map((example) => (
+              <button
+                key={example.ru}
+                type="button"
+                onClick={() => onPromptChange(example[locale])}
+                className="rounded-full border border-black/10 bg-[#f6f5f1] px-3 py-2 text-left text-[11px] leading-4 text-black/52 transition hover:border-black/25 hover:text-black"
+              >
+                {example[locale]}
+              </button>
+            ))}
+          </div>
 
           <button
             type="button"
             onClick={onGenerate}
             disabled={
-              loading ||
-              creditsLoading ||
-              credits === null ||
-              !hasEnoughCredits
+              loading || creditsLoading || credits === null || !hasEnoughCredits
             }
             className="mt-5 w-full rounded-2xl bg-black px-5 py-4 text-sm font-semibold text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/35"
           >
             {loading
-              ? "Preparing photos and generating..."
+              ? ui(
+                  locale,
+                  "Подготавливаем фотографии...",
+                  "Preparing photos...",
+                )
               : creditsLoading || credits === null
-                ? "Loading Credits..."
+                ? ui(locale, "Загружаем баланс...", "Loading credits...")
                 : !hasEnoughCredits
-                  ? `Not enough Credits • ${generationCost} required`
-                  : `Generate photo • ${generationCost} Credits`}
+                  ? ui(
+                      locale,
+                      `Недостаточно кредитов • требуется ${generationCost}`,
+                      `Not enough credits • ${generationCost} required`,
+                    )
+                  : ui(
+                      locale,
+                      `Создать изображение • ${generationCost} кредитов`,
+                      `Create image • ${generationCost} credits`,
+                    )}
           </button>
 
-          {!creditsLoading &&
-            credits !== null &&
-            !hasEnoughCredits && (
-              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <div className="text-sm font-medium text-amber-900">
-                  You do not have enough Credits.
-                </div>
-
-                <div className="mt-1 text-xs leading-5 text-amber-700">
-                  Your balance is {formatCredits(credits)} Credits.
-                  This mode requires {generationCost} Credits.
-                </div>
-
-                <button
-                  type="button"
-                  onClick={onOpenCredits}
-                  className="mt-3 rounded-full bg-amber-900 px-4 py-2 text-xs font-medium text-white"
-                >
-                  Buy Credits
-                </button>
+          {!creditsLoading && credits !== null && !hasEnoughCredits && (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <div className="text-sm font-medium text-amber-900">
+                {ui(
+                  locale,
+                  "Недостаточно кредитов для генерации.",
+                  "Not enough credits for this generation.",
+                )}
               </div>
-            )}
+
+              <div className="mt-1 text-xs leading-5 text-amber-700">
+                {ui(
+                  locale,
+                  `На балансе ${formatCredits(credits, locale)} кредитов. Для выбранного режима требуется ${generationCost} кредитов.`,
+                  `Your balance is ${formatCredits(credits, locale)} credits. The selected mode requires ${generationCost} credits.`,
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={onOpenCredits}
+                className="mt-3 rounded-full bg-amber-900 px-4 py-2 text-xs font-medium text-white"
+              >
+                {ui(locale, "Пополнить баланс", "Buy credits")}
+              </button>
+            </div>
+          )}
 
           {error && (
             <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -1132,17 +1897,26 @@ function StudioView({
           <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
             <div>
               <div className="text-sm font-medium text-white">
-                Preview
+                {ui(locale, "Результат", "Result")}
               </div>
 
               <div className="mt-1 text-xs text-white/40">
-                Result appears here after generation
+                {ui(
+                  locale,
+                  "Готовое изображение появится здесь",
+                  "Your finished image will appear here",
+                )}
               </div>
             </div>
 
             <div className="flex items-center gap-2">
+              {image && !loading && (
+                <div className="rounded-full bg-[#e71c2a] px-3 py-1 text-xs font-semibold text-white">
+                  {ui(locale, "Готово", "Ready")}
+                </div>
+              )}
               <div className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/50">
-                {generationCost} Credits
+                {generationCost} {ui(locale, "кредитов", "credits")}
               </div>
 
               <div className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/50">
@@ -1153,21 +1927,27 @@ function StudioView({
 
           <div className="flex flex-1 items-center justify-center p-6">
             {loading && (
-              <div className="max-w-sm text-center">
-                <div className="mx-auto h-10 w-10 animate-spin rounded-full border border-white/20 border-t-white" />
-
-                <div className="mt-5 text-sm font-medium text-white">
-                  Creating fashion image
+              <div className="w-full max-w-md text-center">
+                <div className="flex justify-center">
+                  <BrandMark size="large" />
                 </div>
-
-                <div className="mt-2 text-sm leading-6 text-white/40">
-                  We compress your photos and generate one premium
-                  result. This can take about a minute.
+                <div className="mt-7 text-lg font-medium text-white">
+                  {generationStatus}
                 </div>
-
-                <div className="mt-3 text-xs text-white/30">
-                  {generationCost} Credits are reserved during
-                  generation.
+                <p className="mt-3 text-sm leading-6 text-white/38">
+                  {ui(
+                    locale,
+                    "Генерация идёт в правой части студии. Не закрывайте страницу.",
+                    "Generation is running in the studio panel. Keep this page open.",
+                  )}
+                </p>
+                <div className="mx-auto mt-6 max-w-sm rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-left">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/25">
+                    {ui(locale, "Пока кадр создаётся", "While your image is being created")}
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-white/48">
+                    {generationTip}
+                  </p>
                 </div>
               </div>
             )}
@@ -1179,12 +1959,19 @@ function StudioView({
                 </div>
 
                 <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">
-                  Your generated photo will appear here.
+                  {ui(
+                    locale,
+                    "Здесь появится готовая фотография.",
+                    "Your finished photo will appear here.",
+                  )}
                 </h2>
 
                 <p className="mt-4 text-sm leading-6 text-white/40">
-                  Upload at least the front image, choose the
-                  production mode and start generation.
+                  {ui(
+                    locale,
+                    "Загрузите хотя бы фотографию спереди, выберите тип съёмки и запустите генерацию.",
+                    "Upload at least the front photo, choose a shooting mode, and start generation.",
+                  )}
                 </p>
               </div>
             )}
@@ -1193,7 +1980,7 @@ function StudioView({
               <div className="w-full max-w-[760px]">
                 <img
                   src={image}
-                  alt="Generated result"
+                  alt={ui(locale, "Результат генерации", "Generation result")}
                   className="w-full rounded-[24px] object-contain shadow-[0_30px_80px_rgba(0,0,0,0.35)]"
                 />
 
@@ -1204,26 +1991,31 @@ function StudioView({
                     disabled={downloading}
                     className="rounded-full bg-white px-5 py-3 text-sm font-medium text-black transition hover:bg-white/85 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {downloading ? "Downloading..." : "Download PNG"}
+                    {downloading
+                      ? ui(locale, "Скачиваем...", "Downloading...")
+                      : ui(locale, "Скачать PNG", "Download PNG")}
                   </button>
 
                   <button
                     type="button"
                     onClick={onGenerate}
                     disabled={
-                      loading ||
-                      credits === null ||
-                      credits < generationCost
+                      loading || credits === null || credits < generationCost
                     }
                     className="rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Regenerate • {generationCost} Credits
+                    {ui(locale, "Создать ещё", "Create another")} •{" "}
+                    {generationCost} {ui(locale, "кредитов", "credits")}
                   </button>
                 </div>
 
                 {imagePath && (
                   <div className="mt-4 text-center text-[11px] text-white/25">
-                    Saved securely in your generation history
+                    {ui(
+                      locale,
+                      "Надёжно сохранено в истории генераций",
+                      "Saved securely in your generation history",
+                    )}
                   </div>
                 )}
               </div>
@@ -1231,7 +2023,8 @@ function StudioView({
           </div>
         </div>
       </section>
-    </section>
+      </section>
+    </>
   );
 }
 
@@ -1262,21 +2055,25 @@ function HistoryView({
   onOpenItem: (item: GenerationHistoryItem) => void;
   onOpenStudio: () => void;
 }) {
+  const locale = useLocale();
   return (
     <section className="mx-auto max-w-[1440px] px-6 py-8">
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div>
           <div className="text-sm font-semibold uppercase tracking-[0.2em] text-black/40">
-            Library
+            {ui(locale, "Библиотека", "Library")}
           </div>
 
           <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em] md:text-6xl">
-            Generation history
+            {ui(locale, "История генераций", "Generation history")}
           </h1>
 
           <p className="mt-4 max-w-2xl text-sm leading-6 text-black/50">
-            All generated images are stored here with their mode,
-            format, prompt and generation date.
+            {ui(
+              locale,
+              "Здесь хранятся все созданные изображения с выбранным режимом, форматом, описанием и датой генерации.",
+              "All generated images are stored here with their mode, format, prompt, and generation date.",
+            )}
           </p>
         </div>
 
@@ -1287,7 +2084,9 @@ function HistoryView({
             disabled={loading}
             className="rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-medium transition hover:border-black/25 disabled:opacity-50"
           >
-            {loading ? "Refreshing..." : "Refresh"}
+            {loading
+              ? ui(locale, "Обновляем...", "Refreshing...")
+              : ui(locale, "Обновить", "Refresh")}
           </button>
 
           <button
@@ -1295,25 +2094,25 @@ function HistoryView({
             onClick={onOpenStudio}
             className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:bg-black/85"
           >
-            New generation
+            {ui(locale, "Новая генерация", "New generation")}
           </button>
         </div>
       </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         <StatCard
-          label="Generated images"
-          value={formatCredits(totalGenerations)}
+          label={ui(locale, "Создано изображений", "Generated images")}
+          value={formatCredits(totalGenerations, locale)}
         />
 
         <StatCard
-          label="Credits spent"
-          value={formatCredits(totalCreditsSpent)}
+          label={ui(locale, "Потрачено кредитов", "Credits spent")}
+          value={formatCredits(totalCreditsSpent, locale)}
         />
 
         <StatCard
-          label="Images in history"
-          value={formatCredits(total)}
+          label={ui(locale, "Изображений в истории", "Images in history")}
+          value={formatCredits(total, locale)}
         />
       </div>
 
@@ -1336,12 +2135,19 @@ function HistoryView({
           </div>
 
           <h2 className="mt-6 text-3xl font-semibold tracking-[-0.04em]">
-            No generated images yet
+            {ui(
+              locale,
+              "Пока нет готовых изображений",
+              "No generated images yet",
+            )}
           </h2>
 
           <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-black/50">
-            Create your first AI fashion photo. It will automatically
-            appear in this library after generation.
+            {ui(
+              locale,
+              "Создайте первую AI-фотографию — после генерации она автоматически появится здесь.",
+              "Create your first AI fashion photo. It will automatically appear here after generation.",
+            )}
           </p>
 
           <button
@@ -1349,7 +2155,7 @@ function HistoryView({
             onClick={onOpenStudio}
             className="mt-6 rounded-full bg-black px-6 py-3 text-sm font-medium text-white"
           >
-            Open Studio
+            {ui(locale, "Перейти к созданию", "Start creating")}
           </button>
         </div>
       ) : (
@@ -1372,7 +2178,9 @@ function HistoryView({
                 disabled={loadingMore}
                 className="rounded-full border border-black/10 bg-white px-6 py-3 text-sm font-medium transition hover:border-black/25 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loadingMore ? "Loading..." : "Load more"}
+                {loadingMore
+                  ? ui(locale, "Загрузка...", "Loading...")
+                  : ui(locale, "Показать ещё", "Load more")}
               </button>
             </div>
           )}
@@ -1397,21 +2205,25 @@ function CreditsView({
   error: string;
   onRefresh: () => void;
 }) {
+  const locale = useLocale();
   return (
     <section className="mx-auto max-w-[1180px] px-6 py-8">
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div>
           <div className="text-sm font-semibold uppercase tracking-[0.2em] text-black/40">
-            Billing
+            {ui(locale, "Баланс", "Balance")}
           </div>
 
           <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em] md:text-6xl">
-            Credits
+            {ui(locale, "Кредиты", "Credits")}
           </h1>
 
           <p className="mt-4 max-w-2xl text-sm leading-6 text-black/50">
-            Your balance is used for image generations. Different
-            production modes have different costs.
+            {ui(
+              locale,
+              "Баланс используется для генераций. Стоимость зависит от выбранного типа съёмки.",
+              "Credits are used for generations. The cost depends on the selected shooting mode.",
+            )}
           </p>
         </div>
 
@@ -1421,7 +2233,9 @@ function CreditsView({
           disabled={loading}
           className="self-start rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-medium transition hover:border-black/25 disabled:opacity-50 md:self-auto"
         >
-          {loading ? "Refreshing..." : "Refresh balance"}
+          {loading
+            ? ui(locale, "Обновляем...", "Refreshing...")
+            : ui(locale, "Обновить баланс", "Refresh balance")}
         </button>
       </div>
 
@@ -1434,24 +2248,32 @@ function CreditsView({
       <div className="mt-8 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-[32px] bg-black p-8 text-white shadow-[0_30px_80px_rgba(0,0,0,0.16)]">
           <div className="text-sm uppercase tracking-[0.18em] text-white/45">
-            Current balance
+            {ui(locale, "Текущий баланс", "Current balance")}
           </div>
 
           <div className="mt-6 text-6xl font-semibold tracking-[-0.06em]">
-            {formatCredits(balance)}
+            {formatCredits(balance, locale)}
           </div>
 
-          <div className="mt-2 text-sm text-white/45">Credits</div>
+          <div className="mt-2 text-sm text-white/45">
+            {ui(locale, "Кредиты", "Credits")}
+          </div>
 
           <div className="mt-8 rounded-[24px] border border-white/10 bg-white/5 p-5">
             <div className="text-sm font-medium">
-              Credits purchase is coming next
+              {ui(
+                locale,
+                "Подключение покупки кредитов — следующий этап",
+                "Credit purchases are the next step",
+              )}
             </div>
 
             <p className="mt-2 text-sm leading-6 text-white/45">
-              This section is ready for connection to Robokassa or
-              another payment provider. The button below is currently
-              a visual placeholder.
+              {ui(
+                locale,
+                "Этот раздел готов к подключению ЮKassa или Robokassa. Пока кнопка работает как визуальная заглушка.",
+                "This section is ready for YooKassa, Robokassa, or another payment provider. The button is currently a visual placeholder.",
+              )}
             </p>
 
             <button
@@ -1459,22 +2281,22 @@ function CreditsView({
               disabled
               className="mt-5 w-full cursor-not-allowed rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-black opacity-50"
             >
-              Buy Credits
+              {ui(locale, "Пополнить баланс", "Buy credits")}
             </button>
           </div>
         </div>
 
         <div className="rounded-[32px] border border-black/10 bg-white p-8 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
           <div className="text-sm uppercase tracking-[0.18em] text-black/40">
-            Usage
+            {ui(locale, "Расходы", "Usage")}
           </div>
 
           <div className="mt-5 text-5xl font-semibold tracking-[-0.05em]">
-            {formatCredits(totalCreditsSpent)}
+            {formatCredits(totalCreditsSpent, locale)}
           </div>
 
           <div className="mt-2 text-sm text-black/45">
-            Credits spent in total
+            {ui(locale, "Всего потрачено кредитов", "Credits spent in total")}
           </div>
 
           <div className="mt-8 space-y-3">
@@ -1485,11 +2307,11 @@ function CreditsView({
               >
                 <div>
                   <div className="text-sm font-medium">
-                    {item.title}
+                    {item.title[locale]}
                   </div>
 
                   <div className="mt-1 text-xs text-black/40">
-                    {item.description}
+                    {item.description[locale]}
                   </div>
                 </div>
 
@@ -1506,30 +2328,31 @@ function CreditsView({
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold tracking-[-0.04em]">
-              Recent transactions
+              {ui(locale, "Последние операции", "Recent transactions")}
             </h2>
 
             <p className="mt-2 text-sm text-black/45">
-              Latest credit charges, purchases and adjustments.
+              {ui(
+                locale,
+                "Списания, пополнения и корректировки баланса.",
+                "Latest credit charges, purchases, and adjustments.",
+              )}
             </p>
           </div>
 
           <div className="rounded-full bg-[#f7f5f0] px-4 py-2 text-xs text-black/50">
-            {transactions.length} records
+            {transactions.length} {ui(locale, "операций", "records")}
           </div>
         </div>
 
         <div className="mt-6 divide-y divide-black/8">
           {transactions.length === 0 ? (
             <div className="py-10 text-center text-sm text-black/45">
-              No transactions yet.
+              {ui(locale, "Операций пока нет.", "No transactions yet.")}
             </div>
           ) : (
             transactions.map((transaction) => (
-              <TransactionRow
-                key={transaction.id}
-                transaction={transaction}
-              />
+              <TransactionRow key={transaction.id} transaction={transaction} />
             ))
           )}
         </div>
@@ -1551,19 +2374,24 @@ function AccountView({
   totalGenerations: number;
   totalCreditsSpent: number;
 }) {
+  const locale = useLocale();
   return (
     <section className="mx-auto max-w-[980px] px-6 py-8">
       <div>
         <div className="text-sm font-semibold uppercase tracking-[0.2em] text-black/40">
-          Profile
+          {ui(locale, "Профиль", "Profile")}
         </div>
 
         <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em] md:text-6xl">
-          Account
+          {ui(locale, "Аккаунт", "Account")}
         </h1>
 
         <p className="mt-4 max-w-2xl text-sm leading-6 text-black/50">
-          Your SSSWEAR AI account information and usage summary.
+          {ui(
+            locale,
+            "Информация об аккаунте SSSWEAR AI и статистика использования.",
+            "Your SSSWEAR AI account information and usage statistics.",
+          )}
         </p>
       </div>
 
@@ -1575,41 +2403,52 @@ function AccountView({
 
           <div className="min-w-0">
             <h2 className="truncate text-3xl font-semibold tracking-[-0.04em]">
-              {name || "SSSWEAR AI user"}
+              {name || ui(locale, "Пользователь SSSWEAR AI", "SSSWEAR AI user")}
             </h2>
 
             <p className="mt-2 break-all text-sm text-black/45">
-              {email || "Email is not available"}
+              {email ||
+                ui(
+                  locale,
+                  "Электронная почта не указана",
+                  "Email not provided",
+                )}
             </p>
           </div>
         </div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
           <AccountStat
-            label="Balance"
-            value={`${formatCredits(balance)} Credits`}
+            label={ui(locale, "Баланс", "Balance")}
+            value={`${formatCredits(balance, locale)} ${ui(locale, "кредитов", "credits")}`}
           />
 
           <AccountStat
-            label="Generations"
-            value={formatCredits(totalGenerations)}
+            label={ui(locale, "Генерации", "Generations")}
+            value={formatCredits(totalGenerations, locale)}
           />
 
           <AccountStat
-            label="Credits spent"
-            value={formatCredits(totalCreditsSpent)}
+            label={ui(locale, "Потрачено кредитов", "Credits spent")}
+            value={formatCredits(totalCreditsSpent, locale)}
           />
         </div>
 
         <div className="mt-8 rounded-[24px] bg-[#f7f5f0] p-5">
           <div className="text-sm font-medium">
-            Account access and security
+            {ui(
+              locale,
+              "Доступ и безопасность аккаунта",
+              "Account access and security",
+            )}
           </div>
 
           <p className="mt-2 text-sm leading-6 text-black/45">
-            Email, password and active sessions are managed securely
-            through Clerk. Use the profile button in the upper-right
-            corner to open account settings.
+            {ui(
+              locale,
+              "Электронная почта, пароль и активные сессии безопасно управляются через Clerk. Для управления аккаунтом используйте кнопку профиля в правом верхнем углу.",
+              "Email, password, and active sessions are securely managed through Clerk. Use the profile button in the top-right corner to manage your account.",
+            )}
           </p>
         </div>
       </div>
@@ -1624,6 +2463,7 @@ function HistoryCard({
   item: GenerationHistoryItem;
   onClick: () => void;
 }) {
+  const locale = useLocale();
   return (
     <button
       type="button"
@@ -1633,13 +2473,20 @@ function HistoryCard({
       <div className="relative aspect-[4/5] overflow-hidden bg-black/5">
         <img
           src={item.imageUrl}
-          alt={item.userPrompt || "Generated fashion image"}
+          alt={
+            item.userPrompt ||
+            ui(
+              locale,
+              "Сгенерированное fashion-изображение",
+              "Generated fashion image",
+            )
+          }
           loading="lazy"
           className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
         />
 
         <div className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur">
-          {modeTitles[item.mode]}
+          {modeTitles[item.mode][locale]}
         </div>
 
         <div className="absolute right-3 top-3 rounded-full bg-white/85 px-3 py-1.5 text-[11px] font-medium text-black backdrop-blur">
@@ -1649,12 +2496,19 @@ function HistoryCard({
 
       <div className="p-5">
         <div className="line-clamp-2 min-h-10 text-sm font-medium leading-5">
-          {item.userPrompt || "No additional instructions"}
+          {item.userPrompt ||
+            ui(
+              locale,
+              "Без дополнительных пожеланий",
+              "No additional instructions",
+            )}
         </div>
 
         <div className="mt-4 flex items-center justify-between text-xs text-black/40">
-          <span>{formatDate(item.createdAt)}</span>
-          <span>{item.creditsSpent} Credits</span>
+          <span>{formatDate(item.createdAt, locale)}</span>
+          <span>
+            {item.creditsSpent} {ui(locale, "кредитов", "credits")}
+          </span>
         </div>
       </div>
     </button>
@@ -1674,6 +2528,7 @@ function HistoryModal({
   onDownload: () => void;
   onUseSettings: () => void;
 }) {
+  const locale = useLocale();
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
@@ -1687,7 +2542,14 @@ function HistoryModal({
         <div className="flex min-h-[420px] items-center justify-center overflow-auto bg-[#171717] p-4 md:p-8">
           <img
             src={item.imageUrl}
-            alt={item.userPrompt || "Generated fashion image"}
+            alt={
+              item.userPrompt ||
+              ui(
+                locale,
+                "Сгенерированное fashion-изображение",
+                "Generated fashion image",
+              )
+            }
             className="max-h-[82vh] max-w-full rounded-[20px] object-contain"
           />
         </div>
@@ -1695,21 +2557,21 @@ function HistoryModal({
         <div className="overflow-y-auto border-t border-white/10 p-6 text-white lg:border-l lg:border-t-0">
           <div className="flex items-center justify-between gap-4">
             <div className="text-sm font-semibold uppercase tracking-[0.18em] text-white/45">
-              Generation
+              {ui(locale, "Генерация", "Generation")}
             </div>
 
             <button
               type="button"
               onClick={onClose}
               className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-lg text-white/70 transition hover:bg-white/10"
-              aria-label="Close"
+              aria-label={ui(locale, "Закрыть", "Close")}
             >
               ×
             </button>
           </div>
 
           <h2 className="mt-6 text-3xl font-semibold tracking-[-0.04em]">
-            {modeTitles[item.mode]}
+            {modeTitles[item.mode][locale]}
           </h2>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -1718,27 +2580,32 @@ function HistoryModal({
             </div>
 
             <div className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/55">
-              {item.creditsSpent} Credits
+              {item.creditsSpent} {ui(locale, "кредитов", "credits")}
             </div>
           </div>
 
           <div className="mt-8">
             <div className="text-xs uppercase tracking-[0.16em] text-white/35">
-              Prompt
+              {ui(locale, "Описание", "Prompt")}
             </div>
 
             <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-white/70">
-              {item.userPrompt || "No additional instructions"}
+              {item.userPrompt ||
+                ui(
+                  locale,
+                  "Без дополнительных пожеланий",
+                  "No additional instructions",
+                )}
             </p>
           </div>
 
           <div className="mt-8">
             <div className="text-xs uppercase tracking-[0.16em] text-white/35">
-              Created
+              {ui(locale, "Создано", "Created")}
             </div>
 
             <p className="mt-3 text-sm text-white/70">
-              {formatDate(item.createdAt)}
+              {formatDate(item.createdAt, locale)}
             </p>
           </div>
 
@@ -1749,7 +2616,9 @@ function HistoryModal({
               disabled={downloading}
               className="w-full rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-black transition hover:bg-white/85 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {downloading ? "Downloading..." : "Download PNG"}
+              {downloading
+                ? ui(locale, "Скачиваем...", "Downloading...")
+                : ui(locale, "Скачать PNG", "Download PNG")}
             </button>
 
             <button
@@ -1757,13 +2626,16 @@ function HistoryModal({
               onClick={onUseSettings}
               className="w-full rounded-2xl border border-white/15 px-5 py-4 text-sm font-semibold text-white transition hover:bg-white/10"
             >
-              Use these settings
+              {ui(locale, "Использовать настройки", "Use these settings")}
             </button>
           </div>
 
           <p className="mt-4 text-xs leading-5 text-white/30">
-            “Use these settings” copies the mode, format and prompt to
-            Studio. Product photos must be uploaded again.
+            {ui(
+              locale,
+              "Кнопка переносит режим, формат и описание в раздел «Создать». Фотографии изделия нужно загрузить заново.",
+              "This copies the mode, format, and prompt to Create. Product photos must be uploaded again.",
+            )}
           </p>
         </div>
       </div>
@@ -1771,22 +2643,19 @@ function HistoryModal({
   );
 }
 
-function TransactionRow({
-  transaction,
-}: {
-  transaction: CreditTransaction;
-}) {
+function TransactionRow({ transaction }: { transaction: CreditTransaction }) {
+  const locale = useLocale();
   const positive = transaction.creditsDelta > 0;
 
   return (
     <div className="flex items-center justify-between gap-4 py-4">
       <div className="min-w-0">
         <div className="truncate text-sm font-medium">
-          {getTransactionTitle(transaction)}
+          {getTransactionTitle(transaction, locale)}
         </div>
 
         <div className="mt-1 text-xs text-black/40">
-          {formatDate(transaction.createdAt)}
+          {formatDate(transaction.createdAt, locale)}
         </div>
       </div>
 
@@ -1798,24 +2667,19 @@ function TransactionRow({
           ].join(" ")}
         >
           {positive ? "+" : ""}
-          {transaction.creditsDelta} Credits
+          {transaction.creditsDelta} {ui(locale, "кредитов", "credits")}
         </div>
 
         <div className="mt-1 text-xs text-black/40">
-          Balance: {formatCredits(transaction.balanceAfter)}
+          {ui(locale, "Баланс", "Balance")}:{" "}
+          {formatCredits(transaction.balanceAfter, locale)}
         </div>
       </div>
     </div>
   );
 }
 
-function StatCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[24px] border border-black/10 bg-white p-5 shadow-[0_16px_45px_rgba(0,0,0,0.04)]">
       <div className="text-xs uppercase tracking-[0.16em] text-black/40">
@@ -1829,13 +2693,7 @@ function StatCard({
   );
 }
 
-function AccountStat({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function AccountStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[20px] border border-black/10 p-5">
       <div className="text-xs uppercase tracking-[0.14em] text-black/40">
@@ -1946,15 +2804,14 @@ function UploadCard({
   onChange: (file: File | null) => void;
   required?: boolean;
 }) {
+  const locale = useLocale();
   return (
     <label className="block cursor-pointer rounded-2xl border border-dashed border-black/15 bg-[#fbfaf7] p-4 transition hover:border-black/35">
       <input
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={(event) =>
-          onChange(event.target.files?.[0] || null)
-        }
+        onChange={(event) => onChange(event.target.files?.[0] || null)}
       />
 
       <div className="flex items-center justify-between gap-4">
@@ -1964,14 +2821,12 @@ function UploadCard({
 
             {required && (
               <div className="rounded-full bg-black px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white">
-                Required
+                {ui(locale, "Обязательно", "Required")}
               </div>
             )}
           </div>
 
-          <div className="mt-1 text-xs text-black/45">
-            {description}
-          </div>
+          <div className="mt-1 text-xs text-black/45">{description}</div>
 
           {file && (
             <div className="mt-3 break-all text-xs text-black/65">
@@ -1981,7 +2836,9 @@ function UploadCard({
         </div>
 
         <div className="shrink-0 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium">
-          {file ? "Replace" : "Upload"}
+          {file
+            ? ui(locale, "Заменить", "Replace")
+            : ui(locale, "Загрузить", "Upload")}
         </div>
       </div>
     </label>
@@ -1995,6 +2852,7 @@ function DetailsUpload({
   files: File[];
   onChange: (files: File[]) => void;
 }) {
+  const locale = useLocale();
   return (
     <label className="block cursor-pointer rounded-2xl border border-dashed border-black/15 bg-[#fbfaf7] p-4 transition hover:border-black/35">
       <input
@@ -2002,17 +2860,21 @@ function DetailsUpload({
         accept="image/*"
         multiple
         className="hidden"
-        onChange={(event) =>
-          onChange(Array.from(event.target.files || []))
-        }
+        onChange={(event) => onChange(Array.from(event.target.files || []))}
       />
 
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <div className="text-sm font-semibold">DETAILS</div>
+          <div className="text-sm font-semibold">
+            {ui(locale, "ДЕТАЛИ", "DETAILS")}
+          </div>
 
           <div className="mt-1 text-xs text-black/45">
-            Add labels, tags, embroidery or close-up details
+            {ui(
+              locale,
+              "Добавьте крупные планы бирок, вышивки, принтов и других деталей",
+              "Add close-ups of labels, embroidery, prints, and other details",
+            )}
           </div>
 
           {files.length > 0 && (
@@ -2030,7 +2892,9 @@ function DetailsUpload({
         </div>
 
         <div className="shrink-0 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium">
-          {files.length > 0 ? "Replace files" : "Add files"}
+          {files.length > 0
+            ? ui(locale, "Заменить файлы", "Replace files")
+            : ui(locale, "Добавить файлы", "Add files")}
         </div>
       </div>
     </label>
