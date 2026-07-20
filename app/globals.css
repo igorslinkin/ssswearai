@@ -151,3 +151,208 @@ footer {
     background-size: 32px 32px;
   }
 }
+
+/* Clerk authentication — SSSWEAR AI */
+.ssswear-clerk-root {
+  width: min(100%, 440px);
+}
+
+.ssswear-clerk-card-box {
+  width: 100%;
+  max-width: 440px;
+}
+
+.ssswear-clerk-card {
+  border: 1px solid rgba(17, 17, 17, 0.12) !important;
+  border-radius: 28px !important;
+  background: #f4f3ef !important;
+  box-shadow: 0 24px 80px rgba(17, 17, 17, 0.22) !important;
+  overflow: hidden;
+}
+
+.ssswear-clerk-header {
+  gap: 8px !important;
+}
+
+.ssswear-clerk-title {
+  color: #111111 !important;
+  font-size: clamp(1.55rem, 4vw, 2rem) !important;
+  line-height: 1.02 !important;
+  letter-spacing: -0.045em !important;
+  font-weight: 700 !important;
+}
+
+.ssswear-clerk-subtitle {
+  color: #777773 !important;
+  line-height: 1.5 !important;
+}
+
+.ssswear-clerk-logo-box {
+  margin-bottom: 4px !important;
+}
+
+.ssswear-clerk-logo-image {
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 16px !important;
+  object-fit: cover !important;
+}
+
+.ssswear-clerk-label {
+  color: #111111 !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.ssswear-clerk-input {
+  min-height: 50px !important;
+  border: 1px solid rgba(17, 17, 17, 0.14) !important;
+  border-radius: 16px !important;
+  background: #ffffff !important;
+  color: #111111 !important;
+  box-shadow: none !important;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease !important;
+}
+
+.ssswear-clerk-input:hover {
+  border-color: rgba(17, 17, 17, 0.28) !important;
+}
+
+.ssswear-clerk-input:focus,
+.ssswear-clerk-input:focus-visible {
+  border-color: #111111 !important;
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.1) !important;
+}
+
+.ssswear-clerk-primary-button {
+  min-height: 50px !important;
+  border-radius: 999px !important;
+  background: #111111 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.015em !important;
+  box-shadow: none !important;
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease !important;
+}
+
+.ssswear-clerk-primary-button:hover,
+.ssswear-clerk-primary-button:focus-visible {
+  background: #292929 !important;
+  transform: translateY(-1px);
+}
+
+.ssswear-clerk-primary-button:active {
+  transform: translateY(0);
+}
+
+.ssswear-clerk-social-button {
+  min-height: 48px !important;
+  border: 1px solid rgba(17, 17, 17, 0.14) !important;
+  border-radius: 999px !important;
+  background: #ffffff !important;
+  color: #111111 !important;
+  box-shadow: none !important;
+}
+
+.ssswear-clerk-social-button:hover,
+.ssswear-clerk-social-button:focus-visible {
+  border-color: rgba(17, 17, 17, 0.3) !important;
+  background: #ffffff !important;
+}
+
+.ssswear-clerk-social-button-text {
+  color: #111111 !important;
+  font-weight: 600 !important;
+}
+
+.ssswear-clerk-divider-line {
+  background: rgba(17, 17, 17, 0.12) !important;
+}
+
+.ssswear-clerk-divider-text {
+  color: #92928e !important;
+}
+
+.ssswear-clerk-footer {
+  background: transparent !important;
+}
+
+.ssswear-clerk-link {
+  color: #111111 !important;
+  font-weight: 600 !important;
+  text-decoration: underline !important;
+  text-decoration-thickness: 1px !important;
+  text-underline-offset: 3px !important;
+}
+
+.ssswear-clerk-link:hover,
+.ssswear-clerk-link:focus-visible {
+  color: #555550 !important;
+}
+
+.ssswear-clerk-otp-input {
+  border: 1px solid rgba(17, 17, 17, 0.16) !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  color: #111111 !important;
+}
+
+.ssswear-clerk-alert {
+  border-radius: 16px !important;
+}
+
+.ssswear-clerk-modal-backdrop {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.ssswear-clerk-modal-content {
+  padding: max(14px, env(safe-area-inset-top)) 14px
+    max(14px, env(safe-area-inset-bottom)) !important;
+}
+
+.ssswear-clerk-popover {
+  border: 1px solid rgba(17, 17, 17, 0.12) !important;
+  border-radius: 22px !important;
+  background: #f4f3ef !important;
+  box-shadow: 0 18px 50px rgba(17, 17, 17, 0.18) !important;
+}
+
+.ssswear-clerk-popover-action {
+  border-radius: 14px !important;
+}
+
+.ssswear-clerk-popover-action:hover,
+.ssswear-clerk-popover-action:focus-visible {
+  background: rgba(17, 17, 17, 0.06) !important;
+}
+
+.ssswear-clerk-popover-action-text {
+  color: #111111 !important;
+}
+
+@media (max-width: 520px) {
+  .ssswear-clerk-root,
+  .ssswear-clerk-card-box {
+    width: 100%;
+    max-width: none;
+  }
+
+  .ssswear-clerk-card {
+    border-radius: 24px !important;
+  }
+
+  .ssswear-clerk-title {
+    font-size: 1.65rem !important;
+  }
+
+  .ssswear-clerk-modal-content {
+    align-items: flex-end !important;
+    padding-inline: 8px !important;
+  }
+}

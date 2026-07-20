@@ -1,6 +1,12 @@
-import type { Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
+import type { Metadata, Viewport } from "next";
+import { AppClerkProvider } from "./clerk-provider";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: {
@@ -21,12 +27,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="ru" className="h-full scroll-smooth antialiased">
-        <body className="min-h-full bg-[#f4f3ef] text-[#111111]">
-          {children}
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="ru" className="h-full scroll-smooth antialiased">
+      <body className="min-h-full overflow-x-hidden bg-[#f4f3ef] text-[#111111]">
+        <AppClerkProvider>{children}</AppClerkProvider>
+      </body>
+    </html>
   );
 }

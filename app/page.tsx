@@ -363,6 +363,9 @@ export default function Page() {
   const changeLocale = (nextLocale: Locale) => {
     setLocale(nextLocale);
     window.localStorage.setItem("ssswear-ai-locale", nextLocale);
+    window.dispatchEvent(
+      new CustomEvent("ssswear-ai-locale-change", { detail: nextLocale }),
+    );
   };
 
   const [activeView, setActiveView] = useState<AppView>("studio");
@@ -569,14 +572,30 @@ export default function Page() {
   );
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => void loadProfile(), 0);
-    return () => window.clearTimeout(timeout);
-  }, [loadProfile]);
+    if (!isLoaded) {
+      return;
+    }
 
-  useEffect(() => {
-    const timeout = window.setTimeout(() => void loadHistory(), 0);
-    return () => window.clearTimeout(timeout);
-  }, [loadHistory]);
+    let cancelled = false;
+
+    const timeout = window.setTimeout(() => {
+      void (async () => {
+        // A new Clerk user does not have a Supabase profile yet. Create/load
+        // it first, then request the balance and history. This prevents the
+        // two first requests from racing each other after registration.
+        await loadProfile();
+
+        if (!cancelled) {
+          await loadHistory();
+        }
+      })();
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [isLoaded, loadProfile, loadHistory]);
 
   useEffect(() => {
     if (!selectedHistoryItem) {
@@ -928,7 +947,7 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={() => setWelcomeOpen(true)}
-                    className="hidden h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-sm font-semibold transition hover:border-black/25 sm:flex"
+                    className="hidden h-10 w-10 min-w-10 shrink-0 items-center justify-center rounded-full border border-black/10 bg-white text-sm font-semibold leading-none transition hover:border-black/25 sm:flex"
                     aria-label={ui(locale, "Как пользоваться", "How to use")}
                     title={ui(locale, "Как пользоваться", "How to use")}
                   >
@@ -937,7 +956,7 @@ export default function Page() {
                   <button
                     type="button"
                     onClick={() => setActiveView("credits")}
-                    className="hidden rounded-full border border-black/10 bg-white px-4 py-2.5 text-sm font-medium transition hover:border-black/25 sm:block"
+                    className="hidden shrink-0 whitespace-nowrap rounded-full border border-black/10 bg-white px-4 py-2.5 text-sm font-medium leading-none transition hover:border-black/25 sm:block"
                   >
                     {creditsLoading
                       ? ui(locale, "Загрузка", "Loading")

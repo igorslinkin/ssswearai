@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "../supabase/server";
+import { ProfileService } from "./profile.service";
 
 export type CreditReservationResult = {
   success: boolean;
@@ -80,6 +81,7 @@ export class CreditService {
     userId: string,
     transactionLimit = 10
   ): Promise<CreditAccountSummary> {
+    const profile = await ProfileService.ensureProfile(userId);
     const supabase = createSupabaseServerClient();
 
     const safeTransactionLimit = Math.min(
@@ -87,55 +89,36 @@ export class CreditService {
       Math.max(1, transactionLimit)
     );
 
-    const [
-      profileResult,
-      transactionsResult,
-    ] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("credits")
-        .eq("clerk_user_id", userId)
-        .single(),
+    const { data, error } = await supabase
+      .from("credit_transactions")
+      .select(
+        `
+          id,
+          type,
+          credits_delta,
+          balance_after,
+          amount_rub,
+          description,
+          payment_id,
+          created_at
+        `
+      )
+      .eq("user_id", userId)
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(safeTransactionLimit);
 
-      supabase
-        .from("credit_transactions")
-        .select(
-          `
-            id,
-            type,
-            credits_delta,
-            balance_after,
-            amount_rub,
-            description,
-            payment_id,
-            created_at
-          `
-        )
-        .eq("user_id", userId)
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(safeTransactionLimit),
-    ]);
-
-    if (profileResult.error) {
+    if (error) {
       throw new Error(
-        `Credit balance load failed: ${profileResult.error.message}`
+        `Credit transactions load failed: ${error.message}`
       );
     }
 
-    if (transactionsResult.error) {
-      throw new Error(
-        `Credit transactions load failed: ${transactionsResult.error.message}`
-      );
-    }
-
-    const rows = (
-      transactionsResult.data ?? []
-    ) as CreditTransactionRow[];
+    const rows = (data ?? []) as CreditTransactionRow[];
 
     return {
-      balance: profileResult.data.credits,
+      balance: profile.credits,
       transactions: rows.map((row) => ({
         id: row.id,
         type: row.type,

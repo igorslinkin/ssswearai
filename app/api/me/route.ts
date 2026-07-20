@@ -1,6 +1,5 @@
 import { currentUser } from "@clerk/nextjs/server";
-import { DEFAULT_FREE_CREDITS } from "../../../lib/config";
-import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { ProfileService } from "../../../lib/services/profile.service";
 
 export async function GET() {
   try {
@@ -12,60 +11,28 @@ export async function GET() {
           success: false,
           error: "Unauthorized",
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
-    const supabase = createSupabaseServerClient();
     const email = user.emailAddresses[0]?.emailAddress || null;
-
-    const { data: existingProfile, error: selectError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("clerk_user_id", user.id)
-      .maybeSingle();
-
-    if (selectError) {
-      throw selectError;
-    }
-
-    if (existingProfile) {
-      return Response.json({
-        success: true,
-        profile: existingProfile,
-      });
-    }
-
-    const { data: newProfile, error: insertError } = await supabase
-      .from("profiles")
-      .insert({
-        clerk_user_id: user.id,
-        email,
-        credits: DEFAULT_FREE_CREDITS,
-      })
-      .select("*")
-      .single();
-
-    if (insertError) {
-      throw insertError;
-    }
+    const profile = await ProfileService.ensureProfile(user.id, email);
 
     return Response.json({
       success: true,
-      profile: newProfile,
+      profile,
     });
   } catch (error: unknown) {
     console.error("ME API ERROR:", error);
 
-    const message =
-      error instanceof Error ? error.message : "Unknown error";
+    const message = error instanceof Error ? error.message : "Unknown error";
 
     return Response.json(
       {
         success: false,
         error: message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
