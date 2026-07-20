@@ -6,9 +6,10 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { SignInButton, UserButton, useUser } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
 import { GENERATION_COSTS, type GenerationMode } from "../lib/config";
 
 type Ratio = "4:5" | "3:4" | "9:16" | "1:1" | "2:3";
@@ -96,6 +97,28 @@ function useLocale(): Locale {
 
 function ui(locale: Locale, ru: string, en: string): string {
   return locale === "ru" ? ru : en;
+}
+
+function useBodyScrollLock(active: boolean) {
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
+    };
+  }, [active]);
 }
 
 const modes: LocalizedModeOption[] = [
@@ -833,16 +856,16 @@ export default function Page() {
 
   return (
     <LocaleContext.Provider value={locale}>
-      <main className="min-h-screen bg-[#f4f3ef] text-[#111111]">
+      <main className="min-h-screen overflow-x-hidden bg-[#f4f3ef] text-[#111111]">
         <header className="sticky top-0 z-40 border-b border-black/8 bg-[#f4f3ef]/92 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-6 sm:py-4 lg:px-8">
             <button
               type="button"
               onClick={() => {
                 setActiveView("studio");
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="flex min-w-0 items-center gap-3 text-left"
+              className="flex min-w-0 items-center gap-2 text-left sm:gap-3"
               aria-label="SSSWEAR AI"
             >
               <BrandMark size="small" />
@@ -923,21 +946,54 @@ export default function Page() {
                   <UserButton />
                 </>
               ) : (
-                <SignInButton mode="modal">
-                  <button
-                    type="button"
-                    className="rounded-full bg-black px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black/80 sm:px-5"
-                  >
-                    {ui(locale, "Войти", "Sign in")}
-                  </button>
-                </SignInButton>
+                <div className="hidden items-center gap-2 sm:flex">
+                  <SignInButton mode="modal">
+                    <button
+                      type="button"
+                      className="rounded-full border border-black/10 bg-white px-4 py-2.5 text-sm font-semibold text-black transition hover:border-black/25"
+                    >
+                      {ui(locale, "Войти", "Sign in")}
+                    </button>
+                  </SignInButton>
+                  <SignUpButton mode="modal">
+                    <button
+                      type="button"
+                      className="rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black/80"
+                    >
+                      {ui(locale, "Зарегистрироваться", "Sign up")}
+                    </button>
+                  </SignUpButton>
+                </div>
               )}
             </div>
           </div>
 
+          {!isSignedIn && (
+            <div className="border-t border-black/5 px-3 py-3 sm:hidden">
+              <div className="mx-auto grid max-w-[1500px] grid-cols-2 gap-2">
+                <SignInButton mode="modal">
+                  <button
+                    type="button"
+                    className="w-full rounded-full border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-black"
+                  >
+                    {ui(locale, "Войти", "Sign in")}
+                  </button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <button
+                    type="button"
+                    className="w-full rounded-full bg-black px-4 py-3 text-sm font-semibold text-white"
+                  >
+                    {ui(locale, "Регистрация", "Sign up")}
+                  </button>
+                </SignUpButton>
+              </div>
+            </div>
+          )}
+
           {isSignedIn && (
-            <div className="border-t border-black/5 px-4 py-2.5 lg:hidden">
-              <div className="mx-auto flex max-w-[1500px] gap-2 overflow-x-auto">
+            <div className="border-t border-black/5 px-3 py-2.5 lg:hidden sm:px-4">
+              <div className="mobile-nav-scroll mx-auto flex max-w-[1500px] gap-2 overflow-x-auto overscroll-x-contain pb-0.5">
                 <MobileNavigationButton
                   active={activeView === "studio"}
                   onClick={() => setActiveView("studio")}
@@ -1153,20 +1209,28 @@ function MarketingLanding({ locale }: { locale: Locale }) {
     <div className="overflow-hidden">
       <section className="relative border-b border-black/8">
         <div className="landing-grid pointer-events-none absolute inset-0 opacity-50" />
-        <div className="relative mx-auto grid min-h-[760px] max-w-[1500px] items-center gap-12 px-5 py-20 sm:px-8 lg:grid-cols-[1.04fr_0.96fr] lg:px-12 lg:py-24">
-          <div className="max-w-[760px]">
+        <div className="relative mx-auto grid w-full min-w-0 max-w-[1500px] items-center gap-10 px-4 py-12 sm:min-h-[700px] sm:px-8 sm:py-16 lg:grid-cols-[minmax(0,1.04fr)_minmax(0,0.96fr)] lg:gap-12 lg:px-12 lg:py-20">
+          <div className="min-w-0 max-w-[860px]">
             <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-black/50">
               <span className="h-1.5 w-1.5 rounded-full bg-black" />
               {ui(locale, "AI-фотостудия для одежды", "AI photo studio for fashion")}
             </div>
-            <h1 className="mt-7 max-w-[780px] text-[clamp(3.4rem,7vw,7.4rem)] font-semibold leading-[0.88] tracking-[-0.075em]">
-              {ui(
-                locale,
-                "Профессиональные фотографии одежды без фотостудии",
-                "Professional fashion photos without a photo studio",
+            <h1 className="mt-6 max-w-[860px] text-[clamp(1.75rem,7.5vw,3rem)] font-semibold leading-[0.96] tracking-[-0.05em] [overflow-wrap:anywhere] sm:mt-7 sm:text-[3.25rem] sm:leading-[0.94] lg:text-[3.4rem] xl:text-[3.875rem]">
+              {locale === "ru" ? (
+                <>
+                  <span className="block">Профессиональные</span>
+                  <span className="block">фотографии одежды</span>
+                  <span className="block">без фотостудии</span>
+                </>
+              ) : (
+                <>
+                  <span className="block">Professional fashion</span>
+                  <span className="block">photography without</span>
+                  <span className="block">a photo studio</span>
+                </>
               )}
             </h1>
-            <p className="mt-8 max-w-2xl text-lg leading-8 text-black/55 sm:text-xl">
+            <p className="mt-6 min-w-0 max-w-2xl text-[15px] leading-6 text-black/55 [overflow-wrap:anywhere] sm:mt-8 sm:text-lg sm:leading-8 lg:text-xl">
               {ui(
                 locale,
                 "От каталожных снимков до имиджевых кампаний — за минуты, без моделей, фотографов и студии.",
@@ -1174,14 +1238,14 @@ function MarketingLanding({ locale }: { locale: Locale }) {
               )}
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <SignInButton mode="modal">
+              <SignUpButton mode="modal">
                 <button
                   type="button"
-                  className="rounded-full bg-black px-7 py-4 text-sm font-semibold text-white transition hover:scale-[1.01] hover:bg-black/82"
+                  className="w-full rounded-full bg-black px-7 py-4 text-sm font-semibold text-white transition hover:scale-[1.01] hover:bg-black/82 sm:w-auto"
                 >
-                  {ui(locale, "Создать первую съёмку", "Create your first shoot")}
+                  {ui(locale, "Попробовать бесплатно", "Try for free")}
                 </button>
-              </SignInButton>
+              </SignUpButton>
               <a
                 href="#how-it-works"
                 className="rounded-full border border-black/12 bg-white px-7 py-4 text-center text-sm font-semibold transition hover:border-black/30"
@@ -1198,18 +1262,18 @@ function MarketingLanding({ locale }: { locale: Locale }) {
             </p>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[660px] lg:ml-auto">
+          <div className="relative mx-auto w-full min-w-0 max-w-[660px] lg:ml-auto">
             <div className="absolute -inset-8 rounded-full bg-white/70 blur-3xl" />
             <div className="relative overflow-hidden rounded-[34px] border border-black/10 bg-white p-3 shadow-[0_45px_120px_rgba(0,0,0,0.16)] sm:p-5">
-              <div className="flex items-center justify-between border-b border-black/8 px-2 pb-4">
-                <div>
+              <div className="flex min-w-0 items-center justify-between gap-3 border-b border-black/8 px-2 pb-4">
+                <div className="min-w-0">
                   <div className="text-xs font-bold uppercase tracking-[0.16em]">SSSWEAR AI</div>
                   <div className="mt-1 text-[10px] text-black/38">
                     {ui(locale, "Новая генерация", "New generation")}
                   </div>
                 </div>
-                <div className="rounded-full bg-black px-3 py-1.5 text-[10px] font-semibold text-white">
-                  130 Credits
+                <div className="shrink-0 rounded-full bg-black px-3 py-1.5 text-[10px] font-semibold text-white">
+                  130 <span className="hidden sm:inline">Credits</span>
                 </div>
               </div>
               <div className="grid gap-3 pt-4 sm:grid-cols-[0.82fr_1.18fr]">
@@ -1245,7 +1309,7 @@ function MarketingLanding({ locale }: { locale: Locale }) {
                     ✦ {ui(locale, "Создать изображение", "Create image")}
                   </div>
                 </div>
-                <div className="flex min-h-[420px] flex-col overflow-hidden rounded-2xl bg-[#101010] p-4 text-white">
+                <div className="flex min-h-[320px] flex-col overflow-hidden rounded-2xl bg-[#101010] p-4 text-white sm:min-h-[420px]">
                   <div className="flex items-center justify-between text-[10px] text-white/45">
                     <span>{ui(locale, "Результат", "Result")}</span>
                     <span>4:5</span>
@@ -1271,7 +1335,7 @@ function MarketingLanding({ locale }: { locale: Locale }) {
         </div>
       </section>
 
-      <section id="audience" className="mx-auto max-w-[1500px] px-5 py-24 sm:px-8 lg:px-12">
+      <section id="audience" className="mx-auto max-w-[1500px] px-4 py-16 sm:px-8 sm:py-24 lg:px-12">
         <LandingHeading
           eyebrow={ui(locale, "Кому подойдёт", "Built for")}
           title={ui(locale, "Один инструмент — разные задачи бренда", "One tool for every fashion content task")}
@@ -1293,29 +1357,65 @@ function MarketingLanding({ locale }: { locale: Locale }) {
       </section>
 
       <section id="how-it-works" className="border-y border-white/10 bg-[#0b0b0b] text-white">
-        <div className="mx-auto max-w-[1500px] px-5 py-24 sm:px-8 lg:px-12">
+        <div className="mx-auto w-full max-w-[1500px] px-4 py-16 sm:px-8 sm:py-24 lg:px-12">
           <LandingHeading
             eyebrow={ui(locale, "Как это работает", "How it works")}
             title={ui(locale, "От фотографии вещи до готового кадра", "From a garment photo to a finished image")}
             dark
           />
-          <div className="mt-14 grid gap-px overflow-hidden rounded-[30px] border border-white/10 bg-white/10 lg:grid-cols-3">
+          <div className="mt-10 grid min-w-0 gap-3 sm:mt-14 lg:grid-cols-3">
             {[
-              ["01", ui(locale, "Загрузите изделие", "Upload the garment"), ui(locale, "Добавьте вид спереди, сзади и фотографии важных деталей.", "Add front, back, and close-up detail photos.")],
-              ["02", ui(locale, "Опишите съёмку", "Describe the shoot"), ui(locale, "Выберите формат и укажите локацию, модель, свет или настроение.", "Choose the format and specify the model, location, light, or mood.")],
-              ["03", ui(locale, "Получите результат", "Get the result"), ui(locale, "Скачайте готовое изображение и используйте его в коммуникации бренда.", "Download the image and use it across your brand communication.")],
-            ].map(([number, title, description]) => (
-              <div key={number} className="min-h-[330px] bg-[#0b0b0b] p-7 sm:p-9">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-xs text-white/45">{number}</div>
-                <h3 className="mt-24 text-3xl font-semibold tracking-[-0.045em]">{title}</h3>
-                <p className="mt-4 max-w-sm text-sm leading-6 text-white/45">{description}</p>
-              </div>
+              {
+                number: "01",
+                title: ui(locale, "Загрузите изделие", "Upload the garment"),
+                description: ui(locale, "Добавьте вид спереди, сзади и фотографии важных деталей.", "Add front, back, and close-up detail photos."),
+                image: "/onboarding-upload.jpg",
+                alt: ui(locale, "Пример загруженного изделия", "Uploaded garment example"),
+              },
+              {
+                number: "02",
+                title: ui(locale, "Опишите съёмку", "Describe the shoot"),
+                description: ui(locale, "Выберите формат и укажите локацию, модель, свет или настроение.", "Choose the format and specify the model, location, light, or mood."),
+                image: "/onboarding-prompt.jpg",
+                alt: ui(locale, "Пример описания съёмки", "Shoot description example"),
+              },
+              {
+                number: "03",
+                title: ui(locale, "Получите результат", "Get the result"),
+                description: ui(locale, "Скачайте готовое изображение и используйте его в коммуникации бренда.", "Download the image and use it across your brand communication."),
+                image: "/onboarding-result.jpg",
+                alt: ui(locale, "Пример готового изображения", "Generated result example"),
+              },
+            ].map((step) => (
+              <article
+                key={step.number}
+                className="min-w-0 overflow-hidden rounded-[24px] border border-white/10 bg-[#121212] p-3 sm:rounded-[30px] sm:p-4"
+              >
+                <div className="overflow-hidden rounded-[18px] border border-white/10 bg-white/5">
+                  <img
+                    src={step.image}
+                    alt={step.alt}
+                    className="aspect-[16/10] h-auto w-full object-cover"
+                  />
+                </div>
+                <div className="p-3 pb-4 pt-5 sm:p-5 sm:pb-6 sm:pt-6">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-[11px] text-white/45">
+                    {step.number}
+                  </div>
+                  <h3 className="mt-6 text-2xl font-semibold leading-tight tracking-[-0.04em] [overflow-wrap:anywhere] sm:text-3xl">
+                    {step.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-white/48 [overflow-wrap:anywhere]">
+                    {step.description}
+                  </p>
+                </div>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-[1500px] gap-4 px-5 py-24 sm:px-8 lg:grid-cols-2 lg:px-12">
+      <section className="mx-auto grid max-w-[1500px] gap-4 px-4 py-16 sm:px-8 sm:py-24 lg:grid-cols-2 lg:px-12">
         <div className="rounded-[32px] bg-[#deddd6] p-7 sm:p-10">
           <div className="text-xs font-bold uppercase tracking-[0.18em] text-black/38">
             {ui(locale, "Как получить лучший результат", "Get the best result")}
@@ -1341,11 +1441,11 @@ function MarketingLanding({ locale }: { locale: Locale }) {
           </h2>
           <div className="mt-12 flex flex-wrap gap-2.5">
             {promptIdeas.map((idea) => (
-              <SignInButton key={idea.ru} mode="modal">
+              <SignUpButton key={idea.ru} mode="modal">
                 <button type="button" className="rounded-full border border-black/10 bg-[#f6f5f1] px-4 py-3 text-left text-sm leading-5 text-black/58 transition hover:border-black/30 hover:text-black">
                   {idea[locale]}
                 </button>
-              </SignInButton>
+              </SignUpButton>
             ))}
           </div>
           <p className="mt-7 text-xs leading-5 text-black/35">
@@ -1355,7 +1455,7 @@ function MarketingLanding({ locale }: { locale: Locale }) {
       </section>
 
       <section className="border-y border-black/8 bg-white">
-        <div className="mx-auto max-w-[1500px] px-5 py-24 sm:px-8 lg:px-12">
+        <div className="mx-auto max-w-[1500px] px-4 py-16 sm:px-8 sm:py-24 lg:px-12">
           <LandingHeading
             eyebrow={ui(locale, "Почему SSSWEAR AI", "Why SSSWEAR AI")}
             title={ui(locale, "Сделано вокруг реальных задач одежды", "Built around real fashion workflows")}
@@ -1377,7 +1477,7 @@ function MarketingLanding({ locale }: { locale: Locale }) {
         </div>
       </section>
 
-      <section id="pricing" className="mx-auto max-w-[1500px] px-5 py-24 sm:px-8 lg:px-12">
+      <section id="pricing" className="mx-auto max-w-[1500px] px-4 py-16 sm:px-8 sm:py-24 lg:px-12">
         <LandingHeading
           eyebrow={ui(locale, "Тарифы", "Pricing")}
           title={ui(locale, "Выберите объём под текущую задачу", "Choose the right volume for your work")}
@@ -1395,18 +1495,18 @@ function MarketingLanding({ locale }: { locale: Locale }) {
                 <div className={index === 1 ? "mb-5 border-t border-white/12 pt-5 text-sm text-white/55" : "mb-5 border-t border-black/10 pt-5 text-sm text-black/55"}>
                   {plan.photos} {ui(locale, "фотографий", "photos")}
                 </div>
-                <SignInButton mode="modal">
+                <SignUpButton mode="modal">
                   <button type="button" className={index === 1 ? "w-full rounded-full bg-white px-5 py-3.5 text-sm font-semibold text-black" : "w-full rounded-full bg-black px-5 py-3.5 text-sm font-semibold text-white"}>
                     {ui(locale, "Начать", "Get started")}
                   </button>
-                </SignInButton>
+                </SignUpButton>
               </div>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1500px] px-5 pb-24 sm:px-8 lg:px-12">
+      <section className="mx-auto max-w-[1500px] px-4 pb-16 sm:px-8 sm:pb-24 lg:px-12">
         <div className="rounded-[36px] bg-[#111111] px-7 py-14 text-white sm:px-12 lg:flex lg:items-end lg:justify-between lg:gap-10">
           <div>
             <div className="text-xs font-bold uppercase tracking-[0.18em] text-white/55">SSSWEAR AI</div>
@@ -1414,11 +1514,11 @@ function MarketingLanding({ locale }: { locale: Locale }) {
               {ui(locale, "Первая съёмка начинается с одной фотографии", "Your first shoot starts with one photo")}
             </h2>
           </div>
-          <SignInButton mode="modal">
+          <SignUpButton mode="modal">
             <button type="button" className="mt-9 shrink-0 rounded-full bg-white px-7 py-4 text-sm font-semibold text-black lg:mt-0">
               {ui(locale, "Попробовать бесплатно", "Try it free")}
             </button>
-          </SignInButton>
+          </SignUpButton>
         </div>
       </section>
     </div>
@@ -1439,7 +1539,7 @@ function LandingHeading({
       <div className={dark ? "text-xs font-bold uppercase tracking-[0.18em] text-white/38" : "text-xs font-bold uppercase tracking-[0.18em] text-black/38"}>
         {eyebrow}
       </div>
-      <h2 className="mt-6 text-4xl font-semibold leading-[0.96] tracking-[-0.06em] sm:text-6xl">
+      <h2 className="mt-6 max-w-full text-[clamp(2rem,8.5vw,2.65rem)] font-semibold leading-[0.98] tracking-[-0.05em] [overflow-wrap:anywhere] sm:text-6xl sm:leading-[0.96] sm:tracking-[-0.06em]">
         {title}
       </h2>
     </div>
@@ -1453,67 +1553,105 @@ function WelcomeScreen({
   locale: Locale;
   onClose: () => void;
 }) {
+  useBodyScrollLock(true);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  const steps = [
+    {
+      title: ui(locale, "Загрузите вещь", "Upload garment"),
+      image: "/onboarding-upload.jpg",
+      alt: ui(locale, "Пример загруженной вещи", "Uploaded garment example"),
+    },
+    {
+      title: ui(locale, "Опишите съёмку", "Describe shoot"),
+      image: "/onboarding-prompt.jpg",
+      alt: ui(locale, "Пример описания съёмки", "Shoot description example"),
+    },
+    {
+      title: ui(locale, "Скачайте кадр", "Download image"),
+      image: "/onboarding-result.jpg",
+      alt: ui(locale, "Пример готового результата", "Generated result example"),
+    },
+  ];
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/72 p-4 backdrop-blur-xl">
-      <div className="relative w-full max-w-[720px] overflow-hidden rounded-[34px] bg-[#0b0b0b] p-7 text-white shadow-[0_40px_140px_rgba(0,0,0,0.55)] sm:p-10">
-        <div className="relative">
-          <BrandMark size="large" />
-          <div className="mt-9 text-xs font-bold uppercase tracking-[0.2em] text-white/35">
+    <div
+      className="fixed inset-0 z-[100] overflow-y-auto overscroll-contain bg-black/72 backdrop-blur-xl"
+      role="dialog"
+      aria-modal="true"
+      aria-label={ui(locale, "Добро пожаловать в SSSWEAR AI", "Welcome to SSSWEAR AI")}
+    >
+      <div className="flex min-h-full items-start justify-center sm:items-center sm:p-4">
+        <div className="relative h-[100dvh] w-full max-w-[720px] overflow-y-auto bg-[#0b0b0b] px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] text-white shadow-[0_40px_140px_rgba(0,0,0,0.55)] sm:h-auto sm:min-h-0 sm:max-h-[calc(100dvh-2rem)] sm:rounded-[34px] sm:p-10">
+          <div className="sticky top-0 z-20 -mr-1 flex justify-end pointer-events-none">
+            <button
+              type="button"
+              onClick={onClose}
+              className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-[#171717]/95 text-2xl leading-none text-white/75 shadow-lg backdrop-blur transition hover:bg-white/10 hover:text-white"
+              aria-label={ui(locale, "Закрыть приветствие", "Close welcome screen")}
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="-mt-10 pr-12 sm:-mt-11">
+            <BrandMark size="large" />
+          </div>
+
+          <div className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-white/35 sm:mt-9">
             SSSWEAR AI
           </div>
-          <h2 className="mt-5 text-4xl font-semibold leading-[0.96] tracking-[-0.06em] sm:text-6xl">
+          <h2 className="mt-4 text-3xl font-semibold leading-[1] tracking-[-0.055em] sm:mt-5 sm:text-6xl sm:leading-[0.96] sm:tracking-[-0.06em]">
             {ui(locale, "Добро пожаловать в AI-фотостудию", "Welcome to your AI photo studio")}
           </h2>
-          <p className="mt-7 max-w-lg text-base leading-7 text-white/55">
+          <p className="mt-5 max-w-lg text-sm leading-6 text-white/55 sm:mt-7 sm:text-base sm:leading-7">
             {ui(
               locale,
               "Мы уже начислили вам 130 бесплатных кредитов — этого хватит примерно на 3 генерации, чтобы познакомиться с сервисом.",
               "We have added 130 free credits — enough for about 3 generations to explore the service.",
             )}
           </p>
-          <div className="mt-8 grid gap-2 sm:grid-cols-3">
-            {[
-              {
-                title: ui(locale, "Загрузите вещь", "Upload garment"),
-                image: "/onboarding-upload.jpg",
-                alt: ui(locale, "Пример загруженной вещи", "Uploaded garment example"),
-              },
-              {
-                title: ui(locale, "Опишите съёмку", "Describe shoot"),
-                image: "/onboarding-prompt.jpg",
-                alt: ui(locale, "Пример описания съёмки", "Shoot description example"),
-              },
-              {
-                title: ui(locale, "Скачайте кадр", "Download image"),
-                image: "/onboarding-result.jpg",
-                alt: ui(locale, "Пример готового результата", "Generated result example"),
-              },
-            ].map((step, index) => (
+
+          <div className="mt-6 grid gap-2 sm:mt-8 sm:grid-cols-3">
+            {steps.map((step, index) => (
               <div
                 key={step.title}
-                className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-3"
+                className="grid grid-cols-[88px_1fr] items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-3 sm:block"
               >
-                <div className="px-1 pt-1 text-[10px] font-bold text-white/30">
-                  0{index + 1}
+                <div className="order-2 min-w-0 sm:order-1">
+                  <div className="text-[10px] font-bold text-white/30">0{index + 1}</div>
+                  <div className="mt-2 text-sm font-medium sm:mt-3">{step.title}</div>
                 </div>
-                <div className="px-1 pt-3 text-sm font-medium">{step.title}</div>
-                <div className="mt-4 overflow-hidden rounded-xl bg-white">
+                <div className="order-1 overflow-hidden rounded-xl bg-white sm:order-2 sm:mt-4">
                   <img
                     src={step.image}
                     alt={step.alt}
-                    className="aspect-[8/5] h-auto w-full object-cover"
+                    className="aspect-square h-auto w-full object-cover sm:aspect-[8/5]"
                   />
                 </div>
               </div>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="mt-8 w-full rounded-full bg-white px-7 py-4 text-sm font-semibold text-black transition hover:bg-white/85"
-          >
-            {ui(locale, "Начать", "Start creating")}
-          </button>
+
+          <div className="sticky bottom-0 z-10 -mx-1 mt-5 bg-[#0b0b0b]/96 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:mt-8 sm:bg-transparent sm:p-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-full bg-white px-7 py-4 text-sm font-semibold text-black transition hover:bg-white/85"
+            >
+              {ui(locale, "Начать", "Start creating")}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1597,6 +1735,7 @@ function StudioView({
 }) {
   const locale = useLocale();
   const [generationStep, setGenerationStep] = useState(0);
+  const resultSectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!loading) {
@@ -1614,6 +1753,21 @@ function StudioView({
       window.clearTimeout(resetTimeout);
       window.clearInterval(interval);
     };
+  }, [loading]);
+
+  useEffect(() => {
+    if (!loading || window.innerWidth >= 1024) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      resultSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 120);
+
+    return () => window.clearTimeout(timeout);
   }, [loading]);
 
   const generationStatus = generationStatuses[generationStep][locale];
@@ -1641,26 +1795,26 @@ function StudioView({
 
   return (
     <>
-      <section className="mx-auto grid max-w-[1500px] gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[560px_1fr] lg:px-8">
-      <aside className="space-y-5">
-        <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
+      <section className="mx-auto grid min-w-0 max-w-[1500px] gap-5 px-3 py-4 sm:gap-6 sm:px-6 sm:py-5 lg:grid-cols-[560px_minmax(0,1fr)] lg:px-8">
+      <aside className="min-w-0 space-y-4 sm:space-y-5">
+        <div className="rounded-[24px] border border-black/10 bg-white p-4 shadow-[0_20px_60px_rgba(0,0,0,0.06)] sm:rounded-[28px] sm:p-6">
           <div className="mb-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-xs font-bold uppercase tracking-[0.18em] text-black/35">
                 {ui(locale, "AI-фотостудия", "AI photo studio")}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="rounded-full border border-black/10 bg-[#f6f5f1] px-3 py-1.5 text-xs text-black/50">
                   {uploadedCount} {ui(locale, "файлов", "files")}
                 </div>
                 <div className="rounded-full bg-black px-3 py-1.5 text-xs font-semibold text-white">
                   {creditsLoading || credits === null
                     ? ui(locale, "Баланс…", "Balance…")
-                    : `${formatCredits(credits, locale)} Credits`}
+                    : `${formatCredits(credits, locale)} ${ui(locale, "кредитов", "credits")}`}
                 </div>
               </div>
             </div>
-            <h1 className="mt-5 text-4xl font-semibold tracking-[-0.055em]">
+            <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-[-0.05em] sm:mt-5 sm:text-4xl sm:tracking-[-0.055em]">
               {ui(locale, "Создайте новую съёмку", "Create a new shoot")}
             </h1>
             <p className="mt-3 max-w-md text-sm leading-6 text-black/52">
@@ -1700,7 +1854,7 @@ function StudioView({
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
+        <div className="rounded-[24px] border border-black/10 bg-white p-4 shadow-[0_20px_60px_rgba(0,0,0,0.05)] sm:rounded-[28px] sm:p-6">
           <SectionTitle
             title={ui(locale, "Тип съёмки", "Shooting mode")}
             subtitle={ui(
@@ -1710,7 +1864,7 @@ function StudioView({
             )}
           />
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-4 grid grid-cols-1 gap-3 min-[390px]:grid-cols-2">
             {modes.map((item) => {
               const selected = mode === item.value;
               const itemCost = GENERATION_COSTS[item.value];
@@ -1754,7 +1908,7 @@ function StudioView({
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
+        <div className="rounded-[24px] border border-black/10 bg-white p-4 shadow-[0_20px_60px_rgba(0,0,0,0.05)] sm:rounded-[28px] sm:p-6">
           <SectionTitle
             title={ui(locale, "Формат", "Format")}
             subtitle={ui(
@@ -1771,7 +1925,7 @@ function StudioView({
                 type="button"
                 onClick={() => onAspectRatioChange(ratio)}
                 className={[
-                  "rounded-full border px-5 py-3 text-sm transition",
+                  "rounded-full border px-4 py-3 text-sm transition sm:px-5",
                   aspectRatio === ratio
                     ? "border-black bg-black text-white"
                     : "border-black/10 bg-[#fbfaf7] hover:border-black/25",
@@ -1783,7 +1937,7 @@ function StudioView({
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
+        <div className="rounded-[24px] border border-black/10 bg-white p-4 shadow-[0_20px_60px_rgba(0,0,0,0.05)] sm:rounded-[28px] sm:p-6">
           <SectionTitle
             title={ui(
               locale,
@@ -1892,9 +2046,9 @@ function StudioView({
         </div>
       </aside>
 
-      <section className="min-h-[calc(100vh-120px)] rounded-[32px] border border-black/10 bg-[#111111] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.12)]">
-        <div className="flex h-full min-h-[720px] flex-col rounded-[24px] bg-[#181818]">
-          <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+      <section ref={resultSectionRef} className="min-w-0 scroll-mt-32 rounded-[24px] border border-black/10 bg-[#111111] p-3 shadow-[0_30px_80px_rgba(0,0,0,0.12)] sm:min-h-[560px] sm:rounded-[32px] sm:p-5 lg:min-h-[calc(100vh-120px)]">
+        <div className="flex h-full min-h-[420px] flex-col rounded-[18px] bg-[#181818] sm:min-h-[540px] sm:rounded-[24px] lg:min-h-[720px]">
+          <div className="flex flex-col items-start justify-between gap-3 border-b border-white/10 px-4 py-4 sm:flex-row sm:items-center sm:px-5">
             <div>
               <div className="text-sm font-medium text-white">
                 {ui(locale, "Результат", "Result")}
@@ -1909,7 +2063,7 @@ function StudioView({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {image && !loading && (
                 <div className="rounded-full bg-[#e71c2a] px-3 py-1 text-xs font-semibold text-white">
                   {ui(locale, "Готово", "Ready")}
@@ -1925,7 +2079,7 @@ function StudioView({
             </div>
           </div>
 
-          <div className="flex flex-1 items-center justify-center p-6">
+          <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
             {loading && (
               <div className="w-full max-w-md text-center">
                 <div className="flex justify-center">
@@ -1958,7 +2112,7 @@ function StudioView({
                   ✦
                 </div>
 
-                <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white">
+                <h2 className="text-2xl font-semibold tracking-[-0.04em] text-white sm:text-3xl">
                   {ui(
                     locale,
                     "Здесь появится готовая фотография.",
@@ -1981,7 +2135,7 @@ function StudioView({
                 <img
                   src={image}
                   alt={ui(locale, "Результат генерации", "Generation result")}
-                  className="w-full rounded-[24px] object-contain shadow-[0_30px_80px_rgba(0,0,0,0.35)]"
+                  className="max-h-[72dvh] w-full rounded-[18px] object-contain shadow-[0_30px_80px_rgba(0,0,0,0.35)] sm:rounded-[24px]"
                 />
 
                 <div className="mt-5 flex flex-wrap justify-center gap-3">
@@ -2057,14 +2211,14 @@ function HistoryView({
 }) {
   const locale = useLocale();
   return (
-    <section className="mx-auto max-w-[1440px] px-6 py-8">
+    <section className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div>
           <div className="text-sm font-semibold uppercase tracking-[0.2em] text-black/40">
             {ui(locale, "Библиотека", "Library")}
           </div>
 
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em] md:text-6xl">
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] sm:text-4xl md:text-6xl">
             {ui(locale, "История генераций", "Generation history")}
           </h1>
 
@@ -2129,7 +2283,7 @@ function HistoryView({
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="mt-8 rounded-[32px] border border-black/10 bg-white px-8 py-20 text-center shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
+        <div className="mt-8 rounded-[24px] border border-black/10 bg-white px-5 py-14 text-center shadow-[0_20px_60px_rgba(0,0,0,0.05)] sm:rounded-[32px] sm:px-8 sm:py-20">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-black text-2xl text-white">
             ✦
           </div>
@@ -2207,14 +2361,14 @@ function CreditsView({
 }) {
   const locale = useLocale();
   return (
-    <section className="mx-auto max-w-[1180px] px-6 py-8">
+    <section className="mx-auto max-w-[1180px] px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div>
           <div className="text-sm font-semibold uppercase tracking-[0.2em] text-black/40">
             {ui(locale, "Баланс", "Balance")}
           </div>
 
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em] md:text-6xl">
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] sm:text-4xl md:text-6xl">
             {ui(locale, "Кредиты", "Credits")}
           </h1>
 
@@ -2246,12 +2400,12 @@ function CreditsView({
       )}
 
       <div className="mt-8 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[32px] bg-black p-8 text-white shadow-[0_30px_80px_rgba(0,0,0,0.16)]">
+        <div className="rounded-[24px] bg-black p-5 text-white shadow-[0_30px_80px_rgba(0,0,0,0.16)] sm:rounded-[32px] sm:p-8">
           <div className="text-sm uppercase tracking-[0.18em] text-white/45">
             {ui(locale, "Текущий баланс", "Current balance")}
           </div>
 
-          <div className="mt-6 text-6xl font-semibold tracking-[-0.06em]">
+          <div className="mt-6 break-all text-5xl font-semibold tracking-[-0.06em] sm:text-6xl">
             {formatCredits(balance, locale)}
           </div>
 
@@ -2286,7 +2440,7 @@ function CreditsView({
           </div>
         </div>
 
-        <div className="rounded-[32px] border border-black/10 bg-white p-8 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
+        <div className="rounded-[24px] border border-black/10 bg-white p-5 shadow-[0_20px_60px_rgba(0,0,0,0.05)] sm:rounded-[32px] sm:p-8">
           <div className="text-sm uppercase tracking-[0.18em] text-black/40">
             {ui(locale, "Расходы", "Usage")}
           </div>
@@ -2324,8 +2478,8 @@ function CreditsView({
         </div>
       </div>
 
-      <div className="mt-6 rounded-[32px] border border-black/10 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
-        <div className="flex items-center justify-between gap-4">
+      <div className="mt-6 rounded-[24px] border border-black/10 bg-white p-4 shadow-[0_20px_60px_rgba(0,0,0,0.05)] sm:rounded-[32px] sm:p-6">
+        <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h2 className="text-2xl font-semibold tracking-[-0.04em]">
               {ui(locale, "Последние операции", "Recent transactions")}
@@ -2376,13 +2530,13 @@ function AccountView({
 }) {
   const locale = useLocale();
   return (
-    <section className="mx-auto max-w-[980px] px-6 py-8">
+    <section className="mx-auto max-w-[980px] px-4 py-6 sm:px-6 sm:py-8">
       <div>
         <div className="text-sm font-semibold uppercase tracking-[0.2em] text-black/40">
           {ui(locale, "Профиль", "Profile")}
         </div>
 
-        <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em] md:text-6xl">
+        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.05em] sm:text-4xl md:text-6xl">
           {ui(locale, "Аккаунт", "Account")}
         </h1>
 
@@ -2395,14 +2549,14 @@ function AccountView({
         </p>
       </div>
 
-      <div className="mt-8 rounded-[32px] border border-black/10 bg-white p-8 shadow-[0_20px_60px_rgba(0,0,0,0.05)]">
+      <div className="mt-8 rounded-[24px] border border-black/10 bg-white p-5 shadow-[0_20px_60px_rgba(0,0,0,0.05)] sm:rounded-[32px] sm:p-8">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-black text-2xl font-semibold text-white">
             {(name || email || "S").slice(0, 1).toUpperCase()}
           </div>
 
           <div className="min-w-0">
-            <h2 className="truncate text-3xl font-semibold tracking-[-0.04em]">
+            <h2 className="break-words text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">
               {name || ui(locale, "Пользователь SSSWEAR AI", "SSSWEAR AI user")}
             </h2>
 
@@ -2529,17 +2683,30 @@ function HistoryModal({
   onUseSettings: () => void;
 }) {
   const locale = useLocale();
+  useBodyScrollLock(true);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black/80 p-2 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
         }
       }}
     >
-      <div className="grid max-h-[94vh] w-full max-w-[1180px] overflow-hidden rounded-[32px] bg-[#111111] shadow-[0_40px_120px_rgba(0,0,0,0.45)] lg:grid-cols-[1fr_390px]">
-        <div className="flex min-h-[420px] items-center justify-center overflow-auto bg-[#171717] p-4 md:p-8">
+      <div className="grid min-h-full w-full max-w-[1180px] overflow-hidden rounded-[24px] bg-[#111111] shadow-[0_40px_120px_rgba(0,0,0,0.45)] sm:min-h-0 sm:max-h-[94dvh] sm:rounded-[32px] lg:grid-cols-[minmax(0,1fr)_390px]">
+        <div className="flex min-h-[300px] items-center justify-center overflow-auto bg-[#171717] p-3 sm:min-h-[420px] md:p-8">
           <img
             src={item.imageUrl}
             alt={
@@ -2550,11 +2717,11 @@ function HistoryModal({
                 "Generated fashion image",
               )
             }
-            className="max-h-[82vh] max-w-full rounded-[20px] object-contain"
+            className="max-h-[58dvh] max-w-full rounded-[16px] object-contain sm:max-h-[82dvh] sm:rounded-[20px]"
           />
         </div>
 
-        <div className="overflow-y-auto border-t border-white/10 p-6 text-white lg:border-l lg:border-t-0">
+        <div className="overflow-y-auto border-t border-white/10 p-5 text-white sm:p-6 lg:border-l lg:border-t-0">
           <div className="flex items-center justify-between gap-4">
             <div className="text-sm font-semibold uppercase tracking-[0.18em] text-white/45">
               {ui(locale, "Генерация", "Generation")}
@@ -2814,9 +2981,9 @@ function UploadCard({
         onChange={(event) => onChange(event.target.files?.[0] || null)}
       />
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="text-sm font-semibold">{title}</div>
 
             {required && (
@@ -2835,7 +3002,7 @@ function UploadCard({
           )}
         </div>
 
-        <div className="shrink-0 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium">
+        <div className="shrink-0 rounded-full border border-black/10 bg-white px-4 py-2 text-center text-xs font-medium">
           {file
             ? ui(locale, "Заменить", "Replace")
             : ui(locale, "Загрузить", "Upload")}
@@ -2863,7 +3030,7 @@ function DetailsUpload({
         onChange={(event) => onChange(Array.from(event.target.files || []))}
       />
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
         <div className="min-w-0">
           <div className="text-sm font-semibold">
             {ui(locale, "ДЕТАЛИ", "DETAILS")}
@@ -2891,7 +3058,7 @@ function DetailsUpload({
           )}
         </div>
 
-        <div className="shrink-0 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium">
+        <div className="shrink-0 rounded-full border border-black/10 bg-white px-4 py-2 text-center text-xs font-medium">
           {files.length > 0
             ? ui(locale, "Заменить файлы", "Replace files")
             : ui(locale, "Добавить файлы", "Add files")}
