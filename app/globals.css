@@ -356,3 +356,56 @@ footer {
     padding-inline: 8px !important;
   }
 }
+
+/* Clerk account management modal — keep it separate from compact auth cards */
+.ssswear-user-profile-modal-content {
+  align-items: center !important;
+  justify-content: center !important;
+  overflow-y: auto !important;
+  padding: max(16px, env(safe-area-inset-top)) 16px
+    max(16px, env(safe-area-inset-bottom)) !important;
+}
+
+.ssswear-user-profile-root {
+  width: min(920px, calc(100vw - 32px)) !important;
+  max-width: 920px !important;
+  min-width: 0 !important;
+  margin: auto !important;
+}
+
+.ssswear-user-profile-card-box {
+  width: 100% !important;
+  max-width: 920px !important;
+  min-width: 0 !important;
+}
+
+.ssswear-user-profile-card {
+  width: 100% !important;
+  max-width: 920px !important;
+  min-width: 0 !important;
+  max-height: calc(100dvh - 32px) !important;
+  border-radius: 28px !important;
+  overflow: hidden !important;
+}
+
+@media (max-width: 720px) {
+  .ssswear-user-profile-modal-content {
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    padding: max(8px, env(safe-area-inset-top)) 8px
+      max(8px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .ssswear-user-profile-root,
+  .ssswear-user-profile-card-box {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .ssswear-user-profile-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(100dvh - 16px) !important;
+    border-radius: 24px !important;
+  }
+}

@@ -962,7 +962,18 @@ export default function Page() {
                       ? ui(locale, "Загрузка", "Loading")
                       : `${formatCredits(credits ?? 0, locale)} ${ui(locale, "кредитов", "credits")}`}
                   </button>
-                  <UserButton />
+                  <UserButton
+                    userProfileProps={{
+                      appearance: {
+                        elements: {
+                          rootBox: "ssswear-user-profile-root",
+                          cardBox: "ssswear-user-profile-card-box",
+                          card: "ssswear-user-profile-card",
+                          modalContent: "ssswear-user-profile-modal-content",
+                        },
+                      },
+                    }}
+                  />
                 </>
               ) : (
                 <div className="hidden items-center gap-2 sm:flex">
