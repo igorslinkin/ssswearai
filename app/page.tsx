@@ -962,18 +962,7 @@ export default function Page() {
                       ? ui(locale, "Загрузка", "Loading")
                       : `${formatCredits(credits ?? 0, locale)} ${ui(locale, "кредитов", "credits")}`}
                   </button>
-                  <UserButton
-                    userProfileProps={{
-                      appearance: {
-                        elements: {
-                          rootBox: "ssswear-user-profile-root",
-                          cardBox: "ssswear-user-profile-card-box",
-                          card: "ssswear-user-profile-card",
-                          modalContent: "ssswear-user-profile-modal-content",
-                        },
-                      },
-                    }}
-                  />
+                  <UserButton />
                 </>
               ) : (
                 <div className="hidden items-center gap-2 sm:flex">
@@ -1084,7 +1073,9 @@ export default function Page() {
                 uploadedCount={uploadedCount}
                 onFrontFileChange={setFrontFile}
                 onBackFileChange={setBackFile}
-                onDetailFilesChange={setDetailFiles}
+                onDetailFilesChange={(files) =>
+                  setDetailFiles(files.slice(0, MAX_DETAIL_FILES))
+                }
                 onModeChange={(nextMode) => {
                   setMode(nextMode);
                   setError("");
@@ -3042,6 +3033,37 @@ function UploadCard({
   );
 }
 
+const MAX_DETAIL_FILES = 4;
+
+function DetailImageMarker({ index }: { index: number }) {
+  return (
+    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-black/10 bg-white sm:h-[72px] sm:w-[72px]">
+      <div className="text-center">
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className="mx-auto h-5 w-5 fill-none stroke-current text-black/45"
+        >
+          <path
+            d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-9Z"
+            strokeWidth="1.6"
+          />
+          <path
+            d="m5.5 16 4-4 2.7 2.7 2.1-2.1 4.2 4.2"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle cx="15.8" cy="9.2" r="1.2" strokeWidth="1.6" />
+        </svg>
+        <div className="mt-1 text-[10px] font-semibold text-black/35">
+          {index + 1}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DetailsUpload({
   files,
   onChange,
@@ -3050,50 +3072,144 @@ function DetailsUpload({
   onChange: (files: File[]) => void;
 }) {
   const locale = useLocale();
+
+  const replaceFile = (index: number, nextFile: File | null) => {
+    if (!nextFile) {
+      return;
+    }
+
+    onChange(
+      files.map((file, fileIndex) =>
+        fileIndex === index ? nextFile : file,
+      ),
+    );
+  };
+
+  const removeFile = (index: number) => {
+    onChange(files.filter((_, fileIndex) => fileIndex !== index));
+  };
+
+  const addFile = (nextFile: File | null) => {
+    if (!nextFile || files.length >= MAX_DETAIL_FILES) {
+      return;
+    }
+
+    onChange([...files, nextFile]);
+  };
+
   return (
-    <label className="block cursor-pointer rounded-2xl border border-dashed border-black/15 bg-[#fbfaf7] p-4 transition hover:border-black/35">
-      <input
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(event) => onChange(Array.from(event.target.files || []))}
-      />
+    <div className="space-y-3">
+      {files.map((file, index) => (
+        <div
+          key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+          className="rounded-2xl border border-black/10 bg-[#fbfaf7] p-4"
+        >
+          <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <DetailImageMarker index={index} />
 
-      <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold">
-            {ui(locale, "ДЕТАЛИ", "DETAILS")}
-          </div>
-
-          <div className="mt-1 text-xs text-black/45">
-            {ui(
-              locale,
-              "Добавьте крупные планы бирок, вышивки, принтов и других деталей",
-              "Add close-ups of labels, embroidery, prints, and other details",
-            )}
-          </div>
-
-          {files.length > 0 && (
-            <div className="mt-3 space-y-1 text-xs text-black/65">
-              {files.map((file, index) => (
-                <div
-                  key={`${file.name}-${file.lastModified}-${index}`}
-                  className="break-all"
-                >
-                  ✅ {file.name} — {formatFileSize(file)}
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-sm font-semibold">
+                    {ui(locale, `ДЕТАЛЬ ${index + 1}`, `DETAIL ${index + 1}`)}
+                  </div>
+                  <div className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-black/45">
+                    {index + 1}/{MAX_DETAIL_FILES}
+                  </div>
                 </div>
-              ))}
+
+                <div className="mt-1 break-all text-xs leading-5 text-black/55">
+                  {file.name} — {formatFileSize(file)}
+                </div>
+              </div>
             </div>
+
+            <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+              <label className="cursor-pointer rounded-full border border-black/10 bg-white px-4 py-2 text-center text-xs font-medium transition hover:border-black/25">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    replaceFile(index, event.target.files?.[0] || null);
+                    event.currentTarget.value = "";
+                  }}
+                />
+                {ui(locale, "Заменить", "Replace")}
+              </label>
+
+              <button
+                type="button"
+                onClick={() => removeFile(index)}
+                className="rounded-full border border-red-200 bg-white px-4 py-2 text-xs font-medium text-red-600 transition hover:border-red-300 hover:bg-red-50"
+              >
+                {ui(locale, "Удалить", "Remove")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {files.length < MAX_DETAIL_FILES && (
+        <label className="block cursor-pointer rounded-2xl border border-dashed border-black/15 bg-[#fbfaf7] p-4 transition hover:border-black/35">
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              addFile(event.target.files?.[0] || null);
+              event.currentTarget.value = "";
+            }}
+          />
+
+          <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="text-sm font-semibold">
+                  {files.length === 0
+                    ? ui(locale, "ДЕТАЛИ", "DETAILS")
+                    : ui(
+                        locale,
+                        `ДЕТАЛЬ ${files.length + 1}`,
+                        `DETAIL ${files.length + 1}`,
+                      )}
+                </div>
+                <div className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-black/45">
+                  {ui(locale, `до ${MAX_DETAIL_FILES} фото`, `up to ${MAX_DETAIL_FILES} photos`)}
+                </div>
+              </div>
+
+              <div className="mt-1 text-xs leading-5 text-black/45">
+                {files.length === 0
+                  ? ui(
+                      locale,
+                      "Добавляйте крупные планы бирок, вышивки, принтов и других деталей по одной фотографии",
+                      "Add close-ups of labels, embroidery, prints, and other details one photo at a time",
+                    )
+                  : ui(
+                      locale,
+                      "Добавьте ещё одну важную деталь изделия",
+                      "Add one more important garment detail",
+                    )}
+              </div>
+            </div>
+
+            <div className="shrink-0 rounded-full border border-black/10 bg-white px-4 py-2 text-center text-xs font-medium">
+              {ui(locale, "Добавить фото", "Add photo")}
+            </div>
+          </div>
+        </label>
+      )}
+
+      {files.length === MAX_DETAIL_FILES && (
+        <div className="rounded-2xl border border-black/8 bg-[#f6f5f1] px-4 py-3 text-xs leading-5 text-black/45">
+          {ui(
+            locale,
+            "Добавлено максимальное количество фотографий деталей — 4.",
+            "The maximum of 4 detail photos has been added.",
           )}
         </div>
-
-        <div className="shrink-0 rounded-full border border-black/10 bg-white px-4 py-2 text-center text-xs font-medium">
-          {files.length > 0
-            ? ui(locale, "Заменить файлы", "Replace files")
-            : ui(locale, "Добавить файлы", "Add files")}
-        </div>
-      </div>
-    </label>
+      )}
+    </div>
   );
 }

@@ -93,6 +93,12 @@ export class GenerationRequestService {
       );
     }
 
+    if (details.length > 4) {
+      throw new GenerationRequestError(
+        "A maximum of 4 detail images is allowed."
+      );
+    }
+
     return {
       front,
       back,

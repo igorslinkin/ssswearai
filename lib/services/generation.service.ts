@@ -42,6 +42,7 @@ export class GenerationService {
     mode: GenerationMode;
     aspectRatio: AspectRatio;
     userPrompt?: string;
+    detailsCount: number;
   }) {
     const modePrompt: Record<GenerationMode, string> = {
       cyclorama:
@@ -68,7 +69,13 @@ CRITICAL GARMENT PRESERVATION:
 - Do not remove existing labels.
 - Do not change text or graphic placement.
 - Do not replace the product with a generic garment.
-- If detail images are uploaded, treat them as mandatory preservation references.
+- ${input.detailsCount > 0
+    ? `Exactly ${input.detailsCount} detail reference image${input.detailsCount === 1 ? " is" : "s are"} attached. Review every detail reference individually before generating.`
+    : "No separate detail reference images are attached."}
+- Every attached detail reference belongs to the same garment shown in the primary front image.
+- Treat every attached detail reference as mandatory preservation information, not as an alternative garment or a style reference.
+- Merge all visible information from all detail references into one accurate understanding of the garment.
+- Do not ignore, simplify, relocate, duplicate or invent any detail shown in those references.
 
 HUMAN REALISM:
 - Natural human skin texture.
@@ -107,10 +114,13 @@ Generate one realistic premium fashion photo.
   }
 
   static async generateImage(input: GenerateImageInput) {
+    const details = (input.details ?? []).slice(0, 4);
+
     const prompt = this.buildPrompt({
       mode: input.mode,
       aspectRatio: input.aspectRatio,
       userPrompt: input.userPrompt,
+      detailsCount: details.length,
     });
 
     const content: Array<Record<string, unknown>> = [
@@ -119,23 +129,39 @@ Generate one realistic premium fashion photo.
         text: prompt,
       },
       {
+        type: "input_text",
+        text: "PRIMARY FRONT REFERENCE: this image defines the garment identity, silhouette, base color and front construction.",
+      },
+      {
         type: "input_image",
         image_url: await this.fileToDataUrl(input.front),
       },
     ];
 
     if (input.back) {
-      content.push({
-        type: "input_image",
-        image_url: await this.fileToDataUrl(input.back),
-      });
+      content.push(
+        {
+          type: "input_text",
+          text: "BACK REFERENCE: this is the back view of the same garment. Use it to preserve the complete construction.",
+        },
+        {
+          type: "input_image",
+          image_url: await this.fileToDataUrl(input.back),
+        },
+      );
     }
 
-    for (const detail of input.details ?? []) {
-      content.push({
-        type: "input_image",
-        image_url: await this.fileToDataUrl(detail),
-      });
+    for (const [index, detail] of details.entries()) {
+      content.push(
+        {
+          type: "input_text",
+          text: `DETAIL REFERENCE ${index + 1} OF ${details.length}: this is a mandatory close-up of the same garment. Preserve every visible material, label, seam, print, embroidery, hardware or construction detail from this image.`,
+        },
+        {
+          type: "input_image",
+          image_url: await this.fileToDataUrl(detail),
+        },
+      );
     }
 
     const openai = new OpenAI({
