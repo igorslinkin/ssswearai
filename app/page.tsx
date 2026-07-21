@@ -963,7 +963,10 @@ export default function Page() {
                       ? ui(locale, "Загрузка", "Loading")
                       : `${formatCredits(credits ?? 0, locale)} ${ui(locale, "кредитов", "credits")}`}
                   </button>
-                  <UserButton />
+                  <UserButton
+  userProfileMode="navigation"
+  userProfileUrl="/user-profile"
+/>
                 </>
               ) : (
                 <div className="hidden items-center gap-2 sm:flex">
