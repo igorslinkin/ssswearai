@@ -7,6 +7,7 @@ export const GENERATION_COSTS = {
   product: 25,
   mobile: 35,
   creative: 45,
+  model3d: 45,
   image: 50,
   tryon: 70,
 } as const;

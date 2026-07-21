@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import sharp from "sharp";
 import {
   type GenerationMode,
 } from "../config";
@@ -7,6 +8,7 @@ export type AspectRatio =
   | "4:5"
   | "3:4"
   | "9:16"
+  | "16:9"
   | "1:1"
   | "2:3";
 
@@ -31,6 +33,7 @@ export class GenerationService {
       "4:5": "1024x1280",
       "3:4": "1024x1360",
       "9:16": "1024x1792",
+      "16:9": "1536x1024",
       "1:1": "1024x1024",
       "2:3": "1024x1536",
     };
@@ -51,6 +54,8 @@ export class GenerationService {
         "Premium product-focused photo, clean background, sharp details, suitable for marketplace.",
       creative:
         "Creative fashion image, expressive composition, modern lighting, premium visual style.",
+      model3d:
+        "Photorealistic premium 3D product visualization of the exact garment, displayed alone without a person, hanger or rack. Give the garment natural volume as if supported by an invisible mannequin. Use a centered front or subtle front three-quarter view, a clean neutral studio background, accurate material response, realistic seams and soft contact shadow. Preserve the original construction exactly and do not create multiple copies of the garment.",
       image:
         "Premium image campaign photo, modern minimal fashion mood, Zara / IRNBY / FRHT / Monochrome level.",
       mobile:
@@ -77,7 +82,15 @@ CRITICAL GARMENT PRESERVATION:
 - Merge all visible information from all detail references into one accurate understanding of the garment.
 - Do not ignore, simplify, relocate, duplicate or invent any detail shown in those references.
 
-HUMAN REALISM:
+${input.mode === "model3d" ? `3D PRODUCT MODEL RULES:
+- Create one photorealistic digital twin of the garment, not a fashion photograph with a person.
+- Show the garment alone, with believable volume and gravity, as if supported by an invisible mannequin.
+- No human body, face, hands, visible mannequin, hanger, clothing rack or flat lay.
+- Use a centered front or subtle front three-quarter camera angle.
+- Keep the entire garment inside the frame with safe margins, especially for 16:9 cropping.
+- Use a clean white, warm-white or light-gray seamless background and a soft realistic shadow.
+- Preserve the exact fabric, silhouette, proportions, stitching, labels, graphics and hardware.
+- Render only one garment and do not show front and back as two separate copies.` : `HUMAN REALISM:
 - Natural human skin texture.
 - Visible natural pores and minor skin imperfections.
 - Realistic facial texture.
@@ -85,7 +98,11 @@ HUMAN REALISM:
 - No waxy face.
 - No plastic skin.
 - No excessive beauty retouching.
-- No over-smoothed skin.
+- No over-smoothed skin.`}
+
+COMPOSITION SAFETY:
+- Keep the primary subject centered with enough safe space around it.
+- For 16:9 output, keep all critical garment details away from the top and bottom crop edges.
 
 SHOOTING MODE:
 ${modePrompt[input.mode]}
@@ -97,10 +114,10 @@ USER ADDITIONAL INSTRUCTIONS:
 ${input.userPrompt?.trim() || "No additional instructions."}
 
 NEGATIVE RULES:
-No cartoon, no illustration, no 3D render, no fake text, no changed logo, no missing tags, no AI artifacts.
+${input.mode === "model3d" ? "No person, no visible mannequin, no hanger, no rack, no flat lay, no multiple garment copies," : "No cartoon, no illustration, no 3D render,"} no fake text, no changed logo, no missing tags, no AI artifacts.
 
 FINAL OUTPUT:
-Generate one realistic premium fashion photo.
+${input.mode === "model3d" ? "Generate one photorealistic premium 3D product render of the exact garment." : "Generate one realistic premium fashion photo."}
 `;
   }
 
@@ -111,6 +128,28 @@ Generate one realistic premium fashion photo.
     const mimeType = file.type || "image/jpeg";
 
     return `data:${mimeType};base64,${base64}`;
+  }
+
+  private static async postProcessImage(
+    imageBase64: string,
+    aspectRatio: AspectRatio
+  ): Promise<string> {
+    if (aspectRatio !== "16:9") {
+      return imageBase64;
+    }
+
+    const source = Buffer.from(imageBase64, "base64");
+    const output = await sharp(source)
+      .resize({
+        width: 1536,
+        height: 864,
+        fit: "cover",
+        position: "centre",
+      })
+      .png()
+      .toBuffer();
+
+    return output.toString("base64");
   }
 
   static async generateImage(input: GenerateImageInput) {
@@ -199,7 +238,10 @@ Generate one realistic premium fashion photo.
     }
 
     return {
-      imageBase64: imageCall.result,
+      imageBase64: await this.postProcessImage(
+        imageCall.result,
+        input.aspectRatio
+      ),
     };
   }
 }

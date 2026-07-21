@@ -12,7 +12,7 @@ import {
 import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
 import { GENERATION_COSTS, type GenerationMode } from "../lib/config";
 
-type Ratio = "4:5" | "3:4" | "9:16" | "1:1" | "2:3";
+type Ratio = "4:5" | "3:4" | "9:16" | "16:9" | "1:1" | "2:3";
 type AppView = "studio" | "history" | "credits" | "account";
 
 type ProfileResponse = {
@@ -136,11 +136,11 @@ const modes: LocalizedModeOption[] = [
     },
   },
   {
-    value: "creative",
-    title: { ru: "Креатив", en: "Creative" },
+    value: "model3d",
+    title: { ru: "3D-модель", en: "3D model" },
     description: {
-      ru: "Яркая визуальная концепция",
-      en: "Bold visual concept",
+      ru: "Объёмный рендер изделия без человека",
+      en: "Dimensional garment render without a model",
     },
   },
   {
@@ -166,12 +166,13 @@ const modes: LocalizedModeOption[] = [
   },
 ];
 
-const ratios: Ratio[] = ["4:5", "3:4", "9:16", "1:1", "2:3"];
+const ratios: Ratio[] = ["4:5", "3:4", "9:16", "16:9", "1:1", "2:3"];
 
 const modeTitles: Record<GenerationMode, LocalizedText> = {
   cyclorama: { ru: "Циклорама", en: "Cyclorama" },
   product: { ru: "Карточка товара", en: "Product" },
   creative: { ru: "Креативная съёмка", en: "Creative" },
+  model3d: { ru: "3D-модель", en: "3D model" },
   image: { ru: "Имиджевая съёмка", en: "Campaign" },
   mobile: { ru: "Мобильная съёмка", en: "Mobile" },
   tryon: { ru: "Виртуальная примерка", en: "Try-on" },

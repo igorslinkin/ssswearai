@@ -2,17 +2,19 @@ export type GenerationMode =
   | "cyclorama"
   | "product"
   | "creative"
+  | "model3d"
   | "image"
   | "mobile"
   | "tryon";
 
-export type AspectRatio = "4:5" | "3:4" | "9:16" | "1:1" | "2:3";
+export type AspectRatio = "4:5" | "3:4" | "9:16" | "16:9" | "1:1" | "2:3";
 
 export function getImageSize(aspectRatio: AspectRatio) {
   const sizes: Record<AspectRatio, string> = {
     "4:5": "1024x1280",
     "3:4": "1024x1360",
     "9:16": "1024x1792",
+    "16:9": "1536x1024",
     "1:1": "1024x1024",
     "2:3": "1024x1536",
   };
@@ -51,6 +53,14 @@ Interesting lighting.
 Modern visual language.
 Still preserve the garment exactly.
 Do not turn it into abstract art.
+`,
+
+    model3d: `
+Create one photorealistic premium 3D product visualization of the exact garment.
+Display the garment alone with natural volume, as if supported by an invisible mannequin.
+No person, no visible mannequin, no hanger, no rack and no flat lay.
+Use a centered front or subtle front three-quarter view on a clean neutral background.
+Preserve every construction and material detail exactly.
 `,
 
     image: `

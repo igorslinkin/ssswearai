@@ -44,6 +44,7 @@ export class GenerationRequestService {
       value === "4:5" ||
       value === "3:4" ||
       value === "9:16" ||
+      value === "16:9" ||
       value === "1:1" ||
       value === "2:3"
     );
